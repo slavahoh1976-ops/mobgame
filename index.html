@@ -1,0 +1,3264 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Лестница в Бесконечность — Touch Edition</title>
+    <style>
+        :root {
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #020617;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+            color: #f8fafc;
+            position: fixed;
+            inset: 0;
+        }
+
+        #app {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Верхний HUD с учётом выреза экрана */
+        .hud {
+            position: absolute;
+            top: calc(6px + var(--safe-top));
+            left: calc(8px + var(--safe-left));
+            right: calc(8px + var(--safe-right));
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        .hud-top-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            width: 100%;
+        }
+
+        .hud-card {
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 11px;
+            padding: 5px 8px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .hud-label {
+            font-size: 0.58rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .hud-val {
+            font-size: 0.86rem;
+            font-weight: 800;
+            color: #f8fafc;
+            margin-top: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .hud-sub {
+            font-size: 0.63rem;
+            color: #38bdf8;
+            margin-top: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .hud-card.money .hud-val {
+            color: #34d399;
+        }
+
+        .hud-card.ladder .hud-sub {
+            color: #fbbf24;
+        }
+
+        .hud-actions-strip {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            pointer-events: auto;
+            padding-bottom: 2px;
+            scrollbar-width: none;
+        }
+
+        .hud-actions-strip::-webkit-scrollbar {
+            display: none;
+        }
+
+        .icon-btn {
+            flex: 0 0 auto;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(148, 163, 184, 0.38);
+            color: #f1f5f9;
+            padding: 7px 10px;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            white-space: nowrap;
+        }
+
+        .icon-btn:active {
+            transform: scale(0.95);
+            background: rgba(30, 41, 59, 0.98);
+        }
+
+        .icon-btn.music-on {
+            border-color: #ec4899;
+            color: #f472b6;
+            box-shadow: 0 0 10px rgba(236, 72, 153, 0.4);
+        }
+
+        .energy-badge {
+            display: none;
+            background: linear-gradient(90deg, #f59e0b, #ef4444);
+            color: #fff;
+            font-weight: 800;
+            font-size: 0.7rem;
+            padding: 6px 10px;
+            border-radius: 999px;
+            align-self: flex-start;
+            box-shadow: 0 0 14px rgba(245, 158, 11, 0.6);
+            animation: pulse 0.8s infinite alternate;
+        }
+
+        .energy-badge.active {
+            display: inline-flex;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(0.96); }
+            to { transform: scale(1.04); }
+        }
+
+        /* Компактная панель быстрых действий (без экранного джойстика) */
+        .touch-action-bar {
+            position: absolute;
+            bottom: calc(90px + var(--safe-bottom));
+            left: calc(10px + var(--safe-left));
+            right: calc(10px + var(--safe-right));
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none;
+            z-index: 16;
+        }
+
+        .act-btn {
+            pointer-events: auto;
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            border: 2px solid #7dd3fc;
+            border-radius: 16px;
+            color: #fff;
+            font-weight: 900;
+            font-size: 0.84rem;
+            padding: 13px 16px;
+            flex: 1;
+            max-width: 215px;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
+            transition: transform 0.1s ease, background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .act-btn:active {
+            transform: scale(0.94);
+        }
+
+        .act-btn.ready-take {
+            background: linear-gradient(135deg, #059669, #10b981);
+            border-color: #a7f3d0;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.65);
+        }
+
+        .act-btn.ready-mount {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+            border-color: #fef08a;
+            color: #020617;
+            box-shadow: 0 0 22px rgba(245, 158, 11, 0.75);
+        }
+
+        .act-btn.ready-npc {
+            background: linear-gradient(135deg, #db2777, #9333ea);
+            border-color: #f5d0fe;
+            box-shadow: 0 0 20px rgba(219, 39, 119, 0.65);
+        }
+
+        .act-btn.auto {
+            flex: 0 0 auto;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1.5px solid rgba(251, 191, 36, 0.55);
+            color: #fbbf24;
+            padding: 13px 13px;
+            font-size: 0.76rem;
+            box-shadow: none;
+        }
+
+        .act-btn.auto.on {
+            background: linear-gradient(135deg, #d97706, #ea580c);
+            border-color: #fde047;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(234, 88, 12, 0.65);
+        }
+
+        /* Нижняя панель апгрейдов */
+        .bottom-dock {
+            position: absolute;
+            bottom: calc(8px + var(--safe-bottom));
+            left: calc(8px + var(--safe-left));
+            right: calc(8px + var(--safe-right));
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            z-index: 15;
+            pointer-events: auto;
+        }
+
+        .upg-btn {
+            background: rgba(15, 23, 42, 0.94);
+            border: 1px solid rgba(56, 189, 248, 0.38);
+            border-radius: 12px;
+            padding: 7px 6px;
+            color: #f8fafc;
+            cursor: pointer;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 74px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        .upg-btn:active:not(:disabled) {
+            transform: scale(0.95);
+            border-color: #38bdf8;
+        }
+
+        .upg-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            border-color: rgba(148, 163, 184, 0.2);
+        }
+
+        .upg-icon {
+            font-size: 1.15rem;
+            line-height: 1;
+        }
+
+        .upg-title {
+            font-size: 0.68rem;
+            font-weight: 800;
+            color: #f8fafc;
+            line-height: 1.15;
+            margin-top: 2px;
+        }
+
+        .upg-cost {
+            font-size: 0.7rem;
+            font-weight: 900;
+            color: #34d399;
+            margin-top: 2px;
+        }
+
+        .upg-lvl {
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: #fbbf24;
+        }
+
+        /* Модальные окна */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.88);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            padding: 16px;
+            transition: opacity 0.25s ease;
+        }
+
+        .overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .modal {
+            background: linear-gradient(160deg, #0f172a, #020617);
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            border-radius: 22px;
+            padding: 22px 20px;
+            max-width: 480px;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+            text-align: center;
+        }
+
+        .modal h1 {
+            font-size: clamp(1.35rem, 5.5vw, 1.85rem);
+            font-weight: 900;
+            background: linear-gradient(90deg, #38bdf8, #fbbf24, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .modal .brand-tag {
+            font-size: 0.74rem;
+            letter-spacing: 1.3px;
+            text-transform: uppercase;
+            color: #38bdf8;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .modal p {
+            color: #cbd5e1;
+            font-size: 0.86rem;
+            line-height: 1.4;
+            margin-bottom: 14px;
+        }
+
+        .guide-box {
+            background: rgba(30, 41, 59, 0.75);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 14px;
+            padding: 11px;
+            text-align: left;
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: #e2e8f0;
+        }
+
+        .guide-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .key-pill {
+            background: rgba(56, 189, 248, 0.2);
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            color: #38bdf8;
+            font-weight: 800;
+            font-size: 0.68rem;
+            padding: 3px 7px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        .primary-btn {
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 14px;
+            border: none;
+            background: linear-gradient(90deg, #0284c7, #38bdf8);
+            color: #020617;
+            font-weight: 900;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 0 22px rgba(56, 189, 248, 0.5);
+        }
+
+        .primary-btn:active {
+            transform: scale(0.97);
+        }
+
+        @media (max-height: 500px) and (orientation: landscape) {
+            .hud {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .hud-top-row {
+                width: auto;
+                max-width: 54%;
+            }
+            .touch-action-bar {
+                bottom: calc(64px + var(--safe-bottom));
+            }
+            .act-btn {
+                padding: 9px 12px;
+                font-size: 0.76rem;
+            }
+            .upg-btn {
+                min-height: 52px;
+                padding: 4px;
+            }
+            .upg-icon {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Верхний HUD -->
+        <div class="hud">
+            <div class="hud-top-row">
+                <div class="hud-card">
+                    <span class="hud-label">Площадка</span>
+                    <span class="hud-val" id="hudLevelTitle">Ур.1: ДК «Заря»</span>
+                    <span class="hud-sub" id="hudLevelGoal">Рядов: 0/4 (0.0 м)</span>
+                </div>
+                <div class="hud-card ladder">
+                    <span class="hud-label">Лестница</span>
+                    <span class="hud-val" id="hudLadderTier">Ур.1: Стремянка</span>
+                    <span class="hud-sub" id="hudRowLadder">До 2-го ряда</span>
+                </div>
+                <div class="hud-card money">
+                    <span class="hud-label">Бюджет</span>
+                    <span class="hud-val" id="hudBudget">1 500 ₽</span>
+                    <span class="hud-sub" id="hudCabinets">0 каб.</span>
+                </div>
+            </div>
+
+            <div class="hud-actions-strip">
+                <button class="icon-btn" id="btnNextLevel">
+                    <span id="levelSwitchLabel">🏟️ 1/4: ДК</span>
+                </button>
+                <button class="icon-btn" id="btnMusic">
+                    <span id="musicLabel">🎵 8-бит: ВЫКЛ</span>
+                </button>
+                <button class="icon-btn" id="btnTestMode">
+                    <span id="screenModeLabel">🏢 VIDEO LAND</span>
+                </button>
+                <button class="icon-btn" id="btnSound">
+                    <span id="soundIcon">🔊 Звук</span>
+                </button>
+            </div>
+
+            <div class="energy-badge" id="energyBadge">⚡ ЭНЕРГЕТИК: ТУРБО!</div>
+        </div>
+
+        <!-- Чистая панель действий без экранного джойстика -->
+        <div class="touch-action-bar">
+            <button class="act-btn auto" id="btnAuto">🖐️ Авто: ВЫКЛ</button>
+            <button class="act-btn" id="btnAction">📦 К кейсу за LED</button>
+        </div>
+
+        <!-- Нижняя панель апгрейдов -->
+        <div class="bottom-dock">
+            <button class="upg-btn" id="upgLadder">
+                <span class="upg-icon">🪜</span>
+                <span class="upg-title">Лестница +2</span>
+                <span class="upg-cost" id="costLadder">800 ₽</span>
+                <span class="upg-lvl" id="lvlLadder">Ур. 1</span>
+            </button>
+
+            <button class="upg-btn" id="upgLock">
+                <span class="upg-icon">⚡</span>
+                <span class="upg-title">Быстрый замок</span>
+                <span class="upg-cost" id="costLock">600 ₽</span>
+                <span class="upg-lvl" id="lvlLock">Ур. 1</span>
+            </button>
+
+            <button class="upg-btn" id="upgPartner">
+                <span class="upg-icon">👷</span>
+                <span class="upg-title">Стажёр</span>
+                <span class="upg-cost" id="costPartner">1 200 ₽</span>
+                <span class="upg-lvl" id="lvlPartner">0 / 3</span>
+            </button>
+
+            <button class="upg-btn" id="upgRigger">
+                <span class="upg-icon">🧗</span>
+                <span class="upg-title">Риггер</span>
+                <span class="upg-cost" id="costRigger">1 500 ₽</span>
+                <span class="upg-lvl" id="lvlRigger">0 / 3</span>
+            </button>
+        </div>
+
+        <!-- Стартовый экран -->
+        <div class="overlay" id="startOverlay">
+            <div class="modal">
+                <div class="brand-tag">VIDEO LAND • покажем миру вместе</div>
+                <h1>ЛЕСТНИЦА В БЕСКОНЕЧНОСТЬ</h1>
+                <p>Никаких лишних кружков на экране — всё управление одним касанием пальца в любом месте!</p>
+
+                <div class="guide-box">
+                    <div class="guide-row">
+                        <span class="key-pill">КАСАНИЕ ЭКРАНА</span>
+                        <span>Нажми на <b>кейс</b>, <b>ячейку экрана</b>, <b>бонус</b> или <b>NPC</b> — монтажник сам побежит!</span>
+                    </div>
+                    <div class="guide-row">
+                        <span class="key-pill">ПРОВЕСТИ ПАЛЬЦЕМ</span>
+                        <span>Веди пальцем по экрану в любую сторону — монтажник идёт прямо за пальцем</span>
+                    </div>
+                    <div class="guide-row">
+                        <span class="key-pill">СМАРТ-КНОПКА</span>
+                        <span>Кнопка справа внизу сама ведёт к ближайшему кейсу или свободной ячейке</span>
+                    </div>
+                    <div class="guide-row">
+                        <span class="key-pill">РИГГЕРЫ 🧗</span>
+                        <span>Найми риггеров внизу — они спустятся сверху и соберут верхние ряды!</span>
+                    </div>
+                </div>
+
+                <button class="primary-btn" id="btnStart">Погнали на монтаж!</button>
+            </div>
+        </div>
+
+        <!-- Окно перехода на следующий уровень -->
+        <div class="overlay hidden" id="levelClearOverlay">
+            <div class="modal">
+                <div class="brand-tag">ПЛОЩАДКА СДАНА ЗАКАЗЧИКУ!</div>
+                <h1 id="clearTitle">Уровень пройден!</h1>
+                <p id="clearDesc">Экран светится, логотип VIDEO LAND сияет, пультовик счастлив!</p>
+                <button class="primary-btn" id="btnContinueLevel">Следующая площадка →</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function drawRoundedBox(ctx, x, y, w, h, r) {
+            const radius = Math.min(r, w / 2, h / 2);
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + w - radius, y);
+            ctx.arcTo(x + w, y, x + w, y + radius, radius);
+            ctx.lineTo(x + w, y + h - radius);
+            ctx.arcTo(x + w, y + h, x + w - radius, y + h, radius);
+            ctx.lineTo(x + radius, y + h);
+            ctx.arcTo(x, y + h, x, y + h - radius, radius);
+            ctx.lineTo(x, y + radius);
+            ctx.arcTo(x, y, x + radius, y, radius);
+            ctx.closePath();
+        }
+
+        function triggerHaptic(ms = 18) {
+            try {
+                if (navigator.vibrate) navigator.vibrate(ms);
+            } catch (e) {}
+        }
+
+        class ChiptuneSoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+                this.musicEnabled = false;
+                this.musicTimer = null;
+                this.stepIndex = 0;
+
+                this.leadNotes = [
+                    523.25, 659.25, 783.99, 1046.50,  783.99, 659.25, 523.25, 0,
+                    587.33, 698.46, 880.00, 1174.66,  880.00, 698.46, 587.33, 0,
+                    659.25, 783.99, 987.77, 1318.51,  1174.66, 1046.50, 987.77, 783.99,
+                    659.25, 587.33, 523.25, 587.33,   659.25, 0, 523.25, 0
+                ];
+                this.bassNotes = [
+                    130.81, 0, 196.00, 0,  130.81, 0, 196.00, 0,
+                    146.83, 0, 220.00, 0,  146.83, 0, 220.00, 0,
+                    164.81, 0, 246.94, 0,  164.81, 0, 246.94, 0,
+                    130.81, 146.83, 164.81, 196.00,  261.63, 0, 130.81, 0
+                ];
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) {
+                        this.ctx = new AudioCtx();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            toggleMute() {
+                this.muted = !this.muted;
+                return this.muted;
+            }
+
+            toggleMusic() {
+                this.init();
+                this.musicEnabled = !this.musicEnabled;
+                if (this.musicEnabled) {
+                    this.startMusicLoop();
+                } else {
+                    this.stopMusicLoop();
+                }
+                return this.musicEnabled;
+            }
+
+            startMusicLoop() {
+                this.stopMusicLoop();
+                this.stepIndex = 0;
+                this.musicTimer = setInterval(() => {
+                    this.playMusicStep();
+                }, 155);
+            }
+
+            stopMusicLoop() {
+                if (this.musicTimer) {
+                    clearInterval(this.musicTimer);
+                    this.musicTimer = null;
+                }
+            }
+
+            playMusicStep() {
+                if (!this.musicEnabled || this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const idx = this.stepIndex % this.leadNotes.length;
+                    const leadFreq = this.leadNotes[idx];
+                    const bassFreq = this.bassNotes[idx];
+
+                    if (leadFreq > 0) {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(leadFreq, now);
+                        gain.gain.setValueAtTime(0.036, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.135);
+                    }
+
+                    if (bassFreq > 0) {
+                        const bassOsc = this.ctx.createOscillator();
+                        const bassGain = this.ctx.createGain();
+                        bassOsc.type = 'triangle';
+                        bassOsc.frequency.setValueAtTime(bassFreq, now);
+                        bassGain.gain.setValueAtTime(0.055, now);
+                        bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+                        bassOsc.connect(bassGain);
+                        bassGain.connect(this.ctx.destination);
+                        bassOsc.start(now);
+                        bassOsc.stop(now + 0.145);
+                    }
+
+                    if (idx % 2 === 1) {
+                        const hatOsc = this.ctx.createOscillator();
+                        const hatGain = this.ctx.createGain();
+                        hatOsc.type = 'sawtooth';
+                        hatOsc.frequency.setValueAtTime(3200 + (idx % 4) * 400, now);
+                        hatGain.gain.setValueAtTime(0.012, now);
+                        hatGain.gain.exponentialRampToValueAtTime(0.0008, now + 0.045);
+                        hatOsc.connect(hatGain);
+                        hatGain.connect(this.ctx.destination);
+                        hatOsc.start(now);
+                        hatOsc.stop(now + 0.05);
+                    }
+
+                    this.stepIndex++;
+                } catch (e) {}
+            }
+
+            playLockSnap() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(1180, now + 0.08);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.09);
+                } catch (e) {}
+            }
+
+            playRowComplete() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + i * 0.06);
+                        gain.gain.setValueAtTime(0.12, now + i * 0.06);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.2);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + i * 0.06);
+                        osc.stop(now + i * 0.06 + 0.2);
+                    });
+                } catch (e) {}
+            }
+
+            playUpgrade() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(260, now);
+                    osc.frequency.exponentialRampToValueAtTime(840, now + 0.22);
+                    gain.gain.setValueAtTime(0.11, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.23);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.23);
+                } catch (e) {}
+            }
+
+            playFall() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(640, now);
+                    osc.frequency.exponentialRampToValueAtTime(110, now + 0.42);
+                    gain.gain.setValueAtTime(0.16, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.44);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.44);
+                } catch (e) {}
+            }
+
+            playRiggerZip(goingUp = false) {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(goingUp ? 280 : 760, now);
+                    osc.frequency.exponentialRampToValueAtTime(goingUp ? 980 : 240, now + 0.22);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.24);
+                } catch (e) {}
+            }
+
+            playNpcBlip(isClient = false) {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = isClient ? 'sine' : 'triangle';
+                    osc.frequency.setValueAtTime(isClient ? 440 : 620, now);
+                    osc.frequency.setValueAtTime(isClient ? 554 : 490, now + 0.09);
+                    gain.gain.setValueAtTime(0.09, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } catch (e) {}
+            }
+
+            playCashDing() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    [987.77, 1318.51].forEach((freq, i) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now + i * 0.07);
+                        gain.gain.setValueAtTime(0.12, now + i * 0.07);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.24);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + i * 0.07);
+                        osc.stop(now + i * 0.07 + 0.24);
+                    });
+                } catch (e) {}
+            }
+
+            playEnergyDrink() {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(340, now);
+                    osc.frequency.exponentialRampToValueAtTime(1280, now + 0.25);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.26);
+                } catch (e) {}
+            }
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const sound = new ChiptuneSoundEngine();
+
+        const hudLevelTitle = document.getElementById('hudLevelTitle');
+        const hudLevelGoal = document.getElementById('hudLevelGoal');
+        const hudLadderTier = document.getElementById('hudLadderTier');
+        const hudRowLadder = document.getElementById('hudRowLadder');
+        const hudBudget = document.getElementById('hudBudget');
+        const hudCabinets = document.getElementById('hudCabinets');
+        const energyBadge = document.getElementById('energyBadge');
+
+        const btnNextLevel = document.getElementById('btnNextLevel');
+        const levelSwitchLabel = document.getElementById('levelSwitchLabel');
+        const btnMusic = document.getElementById('btnMusic');
+        const musicLabel = document.getElementById('musicLabel');
+        const btnTestMode = document.getElementById('btnTestMode');
+        const screenModeLabel = document.getElementById('screenModeLabel');
+        const btnSound = document.getElementById('btnSound');
+        const soundIcon = document.getElementById('soundIcon');
+
+        const btnAuto = document.getElementById('btnAuto');
+        const btnAction = document.getElementById('btnAction');
+        const startOverlay = document.getElementById('startOverlay');
+        const btnStart = document.getElementById('btnStart');
+        const levelClearOverlay = document.getElementById('levelClearOverlay');
+        const clearTitle = document.getElementById('clearTitle');
+        const clearDesc = document.getElementById('clearDesc');
+        const btnContinueLevel = document.getElementById('btnContinueLevel');
+
+        const upgLadder = document.getElementById('upgLadder');
+        const costLadder = document.getElementById('costLadder');
+        const lvlLadder = document.getElementById('lvlLadder');
+
+        const upgLock = document.getElementById('upgLock');
+        const costLock = document.getElementById('costLock');
+        const lvlLock = document.getElementById('lvlLock');
+
+        const upgPartner = document.getElementById('upgPartner');
+        const costPartner = document.getElementById('costPartner');
+        const lvlPartner = document.getElementById('lvlPartner');
+
+        const upgRigger = document.getElementById('upgRigger');
+        const costRigger = document.getElementById('costRigger');
+        const lvlRigger = document.getElementById('lvlRigger');
+
+        const LEVELS = [
+            {
+                id: 1,
+                name: 'Ур.1: ДК «Заря»',
+                short: '1/4: ДК',
+                targetRows: 4,
+                cols: 5,
+                windFactor: 0.65,
+                skyTop: '#1e1b4b',
+                skyBot: '#31102f',
+                floorColor: '#451a03',
+                accent: '#f59e0b',
+                intro: 'Коснись кейса слева или веди пальцем по экрану!'
+            },
+            {
+                id: 2,
+                name: 'Ур.2: Ледовый',
+                short: '2/4: Ледовый',
+                targetRows: 7,
+                cols: 6,
+                windFactor: 1.1,
+                skyTop: '#0c4a6e',
+                skyBot: '#1e293b',
+                floorColor: '#0f172a',
+                accent: '#38bdf8',
+                intro: 'Ледовый дворец: найми риггеров для 7 рядов!'
+            },
+            {
+                id: 3,
+                name: 'Ур.3: Стадион',
+                short: '3/4: Стадион',
+                targetRows: 10,
+                cols: 7,
+                windFactor: 1.55,
+                skyTop: '#0369a1',
+                skyBot: '#38bdf8',
+                floorColor: '#14532d',
+                accent: '#4ade80',
+                intro: 'Открытый стадион: порывы ветра и 10 рядов вверх!'
+            },
+            {
+                id: 4,
+                name: 'Ур.4: Космос ∞',
+                short: '4/4: Космос',
+                targetRows: 999,
+                cols: 8,
+                windFactor: 1.8,
+                skyTop: '#000003',
+                skyBot: '#090d24',
+                floorColor: '#1e293b',
+                accent: '#f472b6',
+                intro: 'Бесконечная орбита! Собирай экран в галактику!'
+            }
+        ];
+
+        let cols = 5;
+        let cabSize = 44;
+        const PX_PER_CAB = 192;
+
+        const LADDER_TIERS = [
+            { name: 'Стремянка', motto: '«Хлипкая, но родная»' },
+            { name: 'На кейсе', motto: '«Техника безопасности? Не слышали!»' },
+            { name: 'На изоленте', motto: '«Держится на честном слове и 3M»' },
+            { name: 'Табуретка+банки', motto: '«Инженерная мысль 80 lvl»' },
+            { name: 'Телескоп-вышка', motto: '«Главное не чихать наверху!»' },
+            { name: 'Космо-лифт', motto: '«Привет, МКС! Примите витуху!»' }
+        ];
+
+        const RIGGER_HELPER_QUOTES = [
+            '«Спускаю модуль с фермы, принимайте!»',
+            '«На страховке, как дома на диване!»',
+            '«Логотип VIDEO LAND видно из космоса!»',
+            '«Закрутил Fast-Lock вниз головой!»',
+            '«Тут до МКС рукой подать!»',
+            '«Повесил кабинет на верхний ряд!»'
+        ];
+
+        const ENGINEER_QUESTIONS = [
+            '«Вы порт 1 и 2 не перепутали?»',
+            '«В NovaLCT 3-й порт отвалился! Пошевелите витуху!»',
+            '«Перепрошей RCFGX! Пиксели плывут!»',
+            '«Кто обжал RJ45 без защёлки на высоте?!»',
+            '«Генлок отвалился, картинка плывёт!»',
+            '«Через 3 минуты саундчек, а логотип вверх ногами!»',
+            '«Кто патч-корд в сендинг не доткнул?!»',
+            '«Resolume ругается — поставьте 59.94 Гц!»'
+        ];
+
+        const ENGINEER_REPLIES = [
+            '«Переткнул витуху и дунул — пошло!»',
+            '«RCFGX отправил по AirDrop, лови!»',
+            '«Это не баг, это авторский глитч!»',
+            '«Примотал синей изолентой — работает!»'
+        ];
+
+        const CLIENT_QUESTIONS = [
+            '«Почему на выключенном экране чёрный такой тёмный?»',
+            '«Сделайте экран шире, логотип с фуршета не видно!»',
+            '«Сделайте так, чтобы светил не ярко, но сочнее!»',
+            '«Можно логотип VIDEO LAND побольше и чтобы крутился?»',
+            '«Почему пиксели квадратные? Сделайте круглые!»',
+            '«Подвиньте весь экран левее на 5 сантиметров!»',
+            '«Можно сюда вывести презентацию в Word с флешки?»',
+            '«Подвиньте логотип на полпикселя влево!»'
+        ];
+
+        const CLIENT_REPLIES = [
+            '«Уже подвинули на полпикселя! С вас премия!»',
+            '«Включили режим „Сочный чёрный Pro Max“!»',
+            '«Поднимем до космоса за доплату!»',
+            '«Сделали пиксели круглыми, проверяйте!»'
+        ];
+
+        const INTERN_BARKS = [
+            '«А где тут верх?!»',
+            '«Витуху зубами зачистил!»',
+            '«Ой, лишний болт остался...»',
+            '«Несу кабинет, держите!»'
+        ];
+
+        const FALL_QUOTES = [
+            'Ой-ой! Мама, я в телевизоре!',
+            'Берегись, падаю в пупырку!',
+            'Кто забыл закрутить Fast-Lock?!',
+            'Шеф, это тактический спуск!'
+        ];
+
+        const SCREEN_MODES = [
+            { id: 'videoland', label: '🏢 VIDEO LAND' },
+            { id: 'concert', label: '🎬 Лазеры' },
+            { id: 'synthcat', label: '🐱 Пиксель-Кот' },
+            { id: 'novalct', label: '🎛️ NovaLCT' }
+        ];
+
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        let gameState = 'START';
+        let currentLevelIdx = 0;
+        let screenModeIndex = 0;
+        let autoInstallMode = false;
+        let globalTime = 0;
+        let lastTime = 0;
+
+        let budget = 1500;
+        let cabinetsInstalled = 0;
+        let completedRows = 0;
+
+        const upgrades = {
+            ladderTier: 0,
+            ladderMaxRows: 2,
+            ladderCost: 800,
+            lockLevel: 1,
+            lockCost: 600,
+            partners: 0,
+            partnerCost: 1200,
+            riggers: 0,
+            riggerCost: 1500
+        };
+
+        let screenRows = [];
+
+        const player = {
+            x: 0,
+            y: 0,
+            ladderX: 0,
+            carrying: false,
+            mounting: false,
+            mountProgress: 0,
+            targetSlot: null,
+            facing: 1,
+            walkCycle: 0,
+            energyTimer: 0,
+            stunTimer: 0,
+            speechText: '',
+            speechTimer: 0,
+            tapGoal: null // { type: 'CASE' | 'SLOT' | 'NPC' | 'POINT', targetX, targetY, slot }
+        };
+
+        // Прямое отслеживание пальца на экране (без экранного кружка)
+        const fingerTracker = {
+            active: false,
+            touchId: null,
+            worldX: 0,
+            worldY: 0,
+            screenX: 0,
+            screenY: 0
+        };
+
+        let ladderSwayAngle = 0;
+        let ladderSwayVel = 0;
+        let cameraY = 0;
+
+        let partners = [];
+        let hiredRiggers = [];
+        let stageNpc = null;
+        let npcSpawnTimer = 4.0;
+        let nextNpcType = 'engineer';
+        let fallingItems = [];
+        let itemSpawnTimer = 3.0;
+        let particles = [];
+        let floatingTexts = [];
+        let tapRipples = [];
+        let cloudsAndStars = [];
+
+        const keys = {};
+
+        function updateResponsiveMetrics() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            const availForScreen = Math.max(175, width - 140);
+            cabSize = Math.max(30, Math.min(52, Math.floor(availForScreen / cols)));
+        }
+
+        window.addEventListener('resize', updateResponsiveMetrics);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(updateResponsiveMetrics, 120);
+        });
+        updateResponsiveMetrics();
+
+        function initSkyObjects() {
+            cloudsAndStars = [];
+            for (let i = 0; i < 80; i++) {
+                cloudsAndStars.push({
+                    x: Math.random() * 1600 - 800,
+                    y: Math.random() * 12000,
+                    size: Math.random() * 18 + 10,
+                    speed: (Math.random() - 0.5) * 16
+                });
+            }
+        }
+        initSkyObjects();
+
+        function formatMoney(val) {
+            return Math.floor(val).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₽';
+        }
+
+        function sayPlayer(text, duration = 2.6) {
+            player.speechText = text;
+            player.speechTimer = duration;
+        }
+
+        function addFloatingText(worldX, worldY, text, color = '#fbbf24') {
+            floatingTexts.push({ x: worldX, y: worldY, text, color, life: 1.0 });
+        }
+
+        function addTapRipple(worldX, worldY, color = '#38bdf8') {
+            tapRipples.push({ x: worldX, y: worldY, color, life: 1.0 });
+        }
+
+        function createSparks(worldX, worldY, color, count = 12) {
+            for (let i = 0; i < count; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const sp = 45 + Math.random() * 135;
+                particles.push({
+                    x: worldX,
+                    y: worldY,
+                    vx: Math.cos(a) * sp,
+                    vy: Math.sin(a) * sp,
+                    size: 2 + Math.random() * 2.5,
+                    color,
+                    life: 1.0
+                });
+            }
+        }
+
+        function ensureRowsExist(count) {
+            while (screenRows.length < count) {
+                screenRows.push(new Array(cols).fill(null));
+            }
+        }
+
+        function getFloorOffset() {
+            return width < 600 ? 185 : 150;
+        }
+
+        function getCaseX() {
+            const screenLeft = -(cols * cabSize) / 2;
+            return Math.max(-width / 2 + 32, screenLeft - 46);
+        }
+
+        function getSlotWorldX(col) {
+            return -(cols * cabSize) / 2 + col * cabSize + cabSize / 2;
+        }
+
+        function getSlotWorldY(row) {
+            return row * cabSize + cabSize / 2;
+        }
+
+        function getNextRecommendedSlot() {
+            ensureRowsExist(upgrades.ladderMaxRows + 2);
+            for (let r = 0; r < upgrades.ladderMaxRows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (screenRows[r][c] === null) {
+                        if (r === 0 || screenRows[r - 1][c] !== null) {
+                            return { row: r, col: c };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function syncAutoModeUI() {
+            const text = autoInstallMode ? '⚡ Авто: ВКЛ' : '🖐️ Авто: ВЫКЛ';
+            btnAuto.textContent = text;
+            btnAuto.classList.toggle('on', autoInstallMode);
+        }
+
+        function updateContextActionButton() {
+            btnAction.classList.remove('ready-take', 'ready-mount', 'ready-npc');
+
+            if (stageNpc && stageNpc.state !== 'LEAVING' && player.y < 25 && Math.abs(player.x - stageNpc.x) < 75) {
+                btnAction.textContent = stageNpc.type === 'client' ? '🎩 Ответить заказчику!' : '🎧 Ответить пультовику!';
+                btnAction.classList.add('ready-npc');
+                return;
+            }
+
+            if (!player.carrying) {
+                if (player.y < 25 && Math.abs(player.x - getCaseX()) < 72) {
+                    btnAction.textContent = '📦 Взять LED-модуль!';
+                    btnAction.classList.add('ready-take');
+                } else {
+                    btnAction.textContent = '📦 За LED-модулем';
+                }
+            } else {
+                const nearSlot = findNearestInstallableSlot(player.x, player.y + 20);
+                if (nearSlot) {
+                    btnAction.textContent = '🔧 Закрутить замок!';
+                    btnAction.classList.add('ready-mount');
+                } else {
+                    btnAction.textContent = '🪜 Поставить модуль';
+                }
+            }
+        }
+
+        function toggleAutoInstallMode() {
+            autoInstallMode = !autoInstallMode;
+            triggerHaptic(15);
+            syncAutoModeUI();
+            sayPlayer(
+                autoInstallMode
+                    ? 'Авто-монтаж ВКЛ: сам бегу и ставлю!'
+                    : 'Авто-монтаж ВЫКЛ: касайся экрана!',
+                2.2
+            );
+        }
+
+        function toggleMusicUI() {
+            const isOn = sound.toggleMusic();
+            musicLabel.textContent = isOn ? '🎵 8-бит: ВКЛ' : '🎵 8-бит: ВЫКЛ';
+            btnMusic.classList.toggle('music-on', isOn);
+        }
+
+        function updateUI() {
+            const lvl = LEVELS[currentLevelIdx];
+            const activeRows = Math.max(1, completedRows + (cabinetsInstalled % cols > 0 ? 1 : 0));
+            const meters = cabinetsInstalled === 0 ? 0 : activeRows * 0.5;
+
+            hudLevelTitle.textContent = lvl.name;
+            hudLevelGoal.textContent = lvl.targetRows >= 999
+                ? `Рядов: ${completedRows}/∞ (${meters.toFixed(1)}м)`
+                : `Рядов: ${completedRows}/${lvl.targetRows} (${meters.toFixed(1)}м)`;
+            levelSwitchLabel.textContent = `🏟️ ${lvl.short}`;
+
+            const tierIdx = Math.min(upgrades.ladderTier, LADDER_TIERS.length - 1);
+            const tierInfo = LADDER_TIERS[tierIdx];
+            hudLadderTier.textContent = upgrades.ladderTier < LADDER_TIERS.length
+                ? `Ур.${upgrades.ladderTier + 1}: ${tierInfo.name}`
+                : `Ур.${upgrades.ladderTier + 1}: Космо-лифт`;
+            hudRowLadder.textContent = `До ${upgrades.ladderMaxRows}-го ряда`;
+
+            hudBudget.textContent = formatMoney(budget);
+            const resW = cols * PX_PER_CAB;
+            const resH = activeRows * PX_PER_CAB;
+            hudCabinets.textContent = `${cabinetsInstalled} каб. (${resW}×${resH})`;
+
+            energyBadge.classList.toggle('active', player.energyTimer > 0);
+            syncAutoModeUI();
+
+            costLadder.textContent = formatMoney(upgrades.ladderCost);
+            lvlLadder.textContent = `Ур. ${upgrades.ladderTier + 1}`;
+            upgLadder.disabled = budget < upgrades.ladderCost;
+
+            costLock.textContent = formatMoney(upgrades.lockCost);
+            lvlLock.textContent = `Ур. ${upgrades.lockLevel}`;
+            upgLock.disabled = budget < upgrades.lockCost;
+
+            if (upgrades.partners >= 3) {
+                costPartner.textContent = 'МАКС.';
+                lvlPartner.textContent = '3 / 3';
+                upgPartner.disabled = true;
+            } else {
+                costPartner.textContent = formatMoney(upgrades.partnerCost);
+                lvlPartner.textContent = `${upgrades.partners} / 3`;
+                upgPartner.disabled = budget < upgrades.partnerCost;
+            }
+
+            if (upgrades.riggers >= 3) {
+                costRigger.textContent = 'МАКС.';
+                lvlRigger.textContent = '3 / 3';
+                upgRigger.disabled = true;
+            } else {
+                costRigger.textContent = formatMoney(upgrades.riggerCost);
+                lvlRigger.textContent = `${upgrades.riggers} / 3`;
+                upgRigger.disabled = budget < upgrades.riggerCost;
+            }
+        }
+
+        function setupLevel(levelIdx, keepUpgrades = false) {
+            currentLevelIdx = levelIdx % LEVELS.length;
+            const lvl = LEVELS[currentLevelIdx];
+            cols = lvl.cols;
+            updateResponsiveMetrics();
+
+            cabinetsInstalled = 0;
+            completedRows = 0;
+
+            if (!keepUpgrades) {
+                budget = 1500;
+                upgrades.ladderTier = 0;
+                upgrades.ladderMaxRows = 2;
+                upgrades.ladderCost = 800;
+                upgrades.lockLevel = 1;
+                upgrades.lockCost = 600;
+                upgrades.partners = 0;
+                upgrades.partnerCost = 1200;
+                upgrades.riggers = 0;
+                upgrades.riggerCost = 1500;
+                partners = [];
+                hiredRiggers = [];
+            } else {
+                budget += 1200;
+                partners.forEach((p, idx) => {
+                    p.x = getCaseX() + 14 * (idx + 1);
+                    p.y = 0;
+                    p.carrying = false;
+                    p.state = 'TO_CASE';
+                });
+                hiredRiggers.forEach((r, idx) => {
+                    r.state = 'IDLE';
+                    r.cooldown = 1.5 + idx * 2.5;
+                    r.y = cameraY + height + 140;
+                });
+            }
+
+            screenRows = [];
+            ensureRowsExist(Math.max(10, upgrades.ladderMaxRows + 5));
+
+            player.x = getCaseX() + 22;
+            player.y = 0;
+            player.ladderX = 0;
+            player.carrying = false;
+            player.mounting = false;
+            player.mountProgress = 0;
+            player.energyTimer = 0;
+            player.stunTimer = 0;
+            player.tapGoal = null;
+
+            stageNpc = null;
+            npcSpawnTimer = 3.5;
+            fallingItems = [];
+            particles = [];
+            floatingTexts = [];
+            tapRipples = [];
+            cameraY = 0;
+            ladderSwayAngle = 0;
+            ladderSwayVel = 0;
+
+            sayPlayer(lvl.intro, 3.4);
+            levelClearOverlay.classList.add('hidden');
+            gameState = 'PLAYING';
+            updateUI();
+        }
+
+        function startGame() {
+            sound.init();
+            triggerHaptic(20);
+            startOverlay.classList.add('hidden');
+            setupLevel(0, false);
+        }
+
+        function spawnHiredRigger(index) {
+            hiredRiggers.push({
+                id: index,
+                x: 0,
+                y: cameraY + height + 140,
+                targetRow: 0,
+                targetCol: 0,
+                state: 'IDLE',
+                cooldown: 1.0 + (index - 1) * 2.5,
+                workTimer: 0,
+                swingPhase: Math.random() * Math.PI * 2,
+                quote: RIGGER_HELPER_QUOTES[(index - 1) % RIGGER_HELPER_QUOTES.length],
+                speechTimer: 0,
+                suitColor: index === 1 ? '#e11d48' : (index === 2 ? '#7c3aed' : '#0d9488')
+            });
+        }
+
+        function findTopSlotForRigger(rigger) {
+            const maxAllowedRow = Math.max(upgrades.ladderMaxRows + 2, completedRows + 2);
+            ensureRowsExist(maxAllowedRow + 2);
+            for (let r = maxAllowedRow - 1; r >= 0; r--) {
+                for (let c = 0; c < cols; c++) {
+                    if (screenRows[r][c] !== null) continue;
+                    if (r > 0 && screenRows[r - 1][c] === null) continue;
+                    const claimed = hiredRiggers.some(other =>
+                        other.id !== rigger.id &&
+                        other.state !== 'IDLE' &&
+                        other.targetRow === r &&
+                        other.targetCol === c
+                    );
+                    if (!claimed) {
+                        return { row: r, col: c };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function updateHiredRiggers(dt) {
+            hiredRiggers.forEach(rig => {
+                rig.swingPhase += dt * 3.0;
+                if (rig.speechTimer > 0) rig.speechTimer -= dt;
+
+                if (rig.state === 'IDLE') {
+                    rig.cooldown -= dt;
+                    if (rig.cooldown <= 0) {
+                        const slot = findTopSlotForRigger(rig);
+                        if (slot) {
+                            rig.targetRow = slot.row;
+                            rig.targetCol = slot.col;
+                            rig.x = getSlotWorldX(slot.col);
+                            rig.y = Math.max(cameraY + height + 90, getSlotWorldY(slot.row) + 240);
+                            rig.state = 'DESCENDING';
+                            rig.quote = RIGGER_HELPER_QUOTES[Math.floor(Math.random() * RIGGER_HELPER_QUOTES.length)];
+                            rig.speechTimer = 3.2;
+                            sound.playRiggerZip(false);
+                        } else {
+                            rig.cooldown = 1.5;
+                        }
+                    }
+                } else if (rig.state === 'DESCENDING') {
+                    if (screenRows[rig.targetRow] && screenRows[rig.targetRow][rig.targetCol] !== null) {
+                        rig.state = 'ASCENDING';
+                        return;
+                    }
+                    const targetY = getSlotWorldY(rig.targetRow) + 24;
+                    rig.y -= 175 * dt;
+                    if (rig.y <= targetY) {
+                        rig.y = targetY;
+                        rig.state = 'INSTALLING';
+                        rig.workTimer = 0.75;
+                    }
+                } else if (rig.state === 'INSTALLING') {
+                    rig.workTimer -= dt;
+                    if (rig.workTimer <= 0) {
+                        if (screenRows[rig.targetRow] && screenRows[rig.targetRow][rig.targetCol] === null) {
+                            installCabinetAt(rig.targetRow, rig.targetCol);
+                            addFloatingText(rig.x, rig.y + 14, 'РИГГЕР СМОНТИРОВАЛ!', '#fbbf24');
+                        }
+                        rig.state = 'ASCENDING';
+                        sound.playRiggerZip(true);
+                    }
+                } else if (rig.state === 'ASCENDING') {
+                    rig.y += 220 * dt;
+                    if (rig.y > Math.max(cameraY + height + 130, getSlotWorldY(rig.targetRow) + 300)) {
+                        rig.state = 'IDLE';
+                        rig.cooldown = Math.max(4.5, 8.5 - upgrades.lockLevel * 0.4);
+                    }
+                }
+            });
+        }
+
+        function spawnStageNpc() {
+            const type = nextNpcType;
+            nextNpcType = type === 'engineer' ? 'client' : 'engineer';
+
+            const screenRight = (cols * cabSize) / 2;
+            const stageRightEdge = Math.min(width / 2 - 22, screenRight + 95);
+            const targetX = Math.max(screenRight + 26, stageRightEdge - 14);
+
+            const questions = type === 'engineer' ? ENGINEER_QUESTIONS : CLIENT_QUESTIONS;
+            const quote = questions[Math.floor(Math.random() * questions.length)];
+
+            stageNpc = {
+                type,
+                x: targetX + 110,
+                targetX,
+                state: 'ENTERING',
+                quote,
+                timer: 15.0,
+                walkCycle: 0
+            };
+            sound.playNpcBlip(type === 'client');
+        }
+
+        function resolveStageNpc() {
+            if (!stageNpc || stageNpc.state === 'LEAVING') return false;
+
+            const isClient = stageNpc.type === 'client';
+            const bonus = (isClient ? 450 : 350) + completedRows * 45;
+            budget += bonus;
+
+            const replies = isClient ? CLIENT_REPLIES : ENGINEER_REPLIES;
+            const reply = replies[Math.floor(Math.random() * replies.length)];
+
+            sound.playCashDing();
+            triggerHaptic(30);
+            sayPlayer(reply, 2.8);
+            addFloatingText(
+                stageNpc.x,
+                70,
+                `${isClient ? 'ЧАЕВЫЕ' : 'ПРЕМИЯ'} +${bonus} ₽`,
+                '#34d399'
+            );
+            createSparks(stageNpc.x, 35, '#fbbf24', 16);
+            player.energyTimer = Math.max(player.energyTimer, 3.5);
+
+            stageNpc.quote = isClient
+                ? '«Вооот, теперь другое дело!»'
+                : '«О, зелёная лампочка пошла!»';
+            stageNpc.state = 'LEAVING';
+            stageNpc.timer = 1.6;
+            updateUI();
+            return true;
+        }
+
+        function buyUpgrade(type) {
+            if (gameState !== 'PLAYING') return;
+            sound.init();
+            triggerHaptic(22);
+
+            if (type === 'ladder' && budget >= upgrades.ladderCost) {
+                budget -= upgrades.ladderCost;
+                upgrades.ladderTier += 1;
+                upgrades.ladderMaxRows += 2;
+                upgrades.ladderCost = Math.round(upgrades.ladderCost * 1.48);
+                ensureRowsExist(upgrades.ladderMaxRows + 5);
+
+                const tierInfo = LADDER_TIERS[Math.min(upgrades.ladderTier, LADDER_TIERS.length - 1)];
+                sound.playUpgrade();
+                sayPlayer(tierInfo.motto, 2.8);
+                addFloatingText(player.ladderX, upgrades.ladderMaxRows * cabSize, 'ЛЕСТНИЦА +2!', '#fbbf24');
+                createSparks(player.ladderX, Math.min(player.y + 35, upgrades.ladderMaxRows * cabSize), '#fbbf24', 18);
+            } else if (type === 'lock' && budget >= upgrades.lockCost) {
+                budget -= upgrades.lockCost;
+                upgrades.lockLevel += 1;
+                upgrades.lockCost = Math.round(upgrades.lockCost * 1.55);
+                sound.playUpgrade();
+                sayPlayer('Шуруповёрт на турбо!', 2.2);
+                addFloatingText(player.x, player.y + 40, 'FAST-LOCK +1!', '#38bdf8');
+            } else if (type === 'partner' && upgrades.partners < 3 && budget >= upgrades.partnerCost) {
+                budget -= upgrades.partnerCost;
+                upgrades.partners += 1;
+                upgrades.partnerCost = Math.round(upgrades.partnerCost * 1.65);
+                spawnPartner(upgrades.partners);
+                sound.playUpgrade();
+                sayPlayer('Стажёр вышел на смену!', 2.4);
+            } else if (type === 'rigger' && upgrades.riggers < 3 && budget >= upgrades.riggerCost) {
+                budget -= upgrades.riggerCost;
+                upgrades.riggers += 1;
+                upgrades.riggerCost = Math.round(upgrades.riggerCost * 1.65);
+                spawnHiredRigger(upgrades.riggers);
+                sound.playUpgrade();
+                sayPlayer('Риггер на лебёдке! Верхние ряды на нём!', 2.6);
+                addFloatingText(0, upgrades.ladderMaxRows * cabSize + 24, 'РИГГЕР НАНЯТ! 🧗', '#fbbf24');
+            }
+            updateUI();
+        }
+
+        function spawnPartner(index) {
+            partners.push({
+                id: index,
+                x: getCaseX() + 14 * index,
+                y: 0,
+                carrying: false,
+                state: 'TO_CASE',
+                targetRow: 0,
+                targetCol: 0,
+                mountTimer: 0,
+                stuckTimer: 0,
+                speed: 145 + index * 20,
+                walkCycle: Math.random() * 6,
+                speechText: '«Несу модуль!»',
+                speechTimer: 2.0,
+                color: index === 1 ? '#10b981' : (index === 2 ? '#f59e0b' : '#ec4899')
+            });
+        }
+
+        function installCabinetAt(row, col) {
+            ensureRowsExist(row + 4);
+            if (screenRows[row][col] !== null) return;
+
+            screenRows[row][col] = { row, col };
+            cabinetsInstalled += 1;
+
+            const reward = 180 + row * 40 + currentLevelIdx * 35;
+            budget += reward;
+            sound.playLockSnap();
+            triggerHaptic(18);
+            createSparks(getSlotWorldX(col), getSlotWorldY(row), '#38bdf8', 12);
+            addFloatingText(getSlotWorldX(col), getSlotWorldY(row) + 10, `+${reward} ₽`, '#34d399');
+
+            if (screenRows[row].every(cell => cell !== null)) {
+                completedRows += 1;
+                const rowBonus = 300 + row * 80;
+                budget += rowBonus;
+                sound.playRowComplete();
+                triggerHaptic(40);
+                addFloatingText(0, getSlotWorldY(row) + 24, `РЯД #${row + 1}! +${rowBonus} ₽`, '#fbbf24');
+
+                const lvl = LEVELS[currentLevelIdx];
+                if (completedRows >= lvl.targetRows && currentLevelIdx < LEVELS.length - 1) {
+                    gameState = 'LEVEL_CLEAR';
+                    clearTitle.textContent = `${lvl.name} — СДАНО!`;
+                    clearDesc.textContent = `Собрано ${completedRows} рядов! Переезжаем на площадку «${LEVELS[currentLevelIdx + 1].name}»!`;
+                    levelClearOverlay.classList.remove('hidden');
+                }
+            }
+            updateUI();
+        }
+
+        function triggerPlayerAction() {
+            if (gameState !== 'PLAYING' || player.stunTimer > 0) return;
+            sound.init();
+            triggerHaptic(15);
+
+            if (stageNpc && stageNpc.state !== 'LEAVING' && player.y < 25 && Math.abs(player.x - stageNpc.x) < 75) {
+                resolveStageNpc();
+                return;
+            }
+
+            if (!player.carrying) {
+                const caseX = getCaseX();
+                if (player.y < 22 && Math.abs(player.x - caseX) < 72) {
+                    player.carrying = true;
+                    player.tapGoal = null;
+                    sound.playLockSnap();
+                    addFloatingText(player.x, player.y + 40, 'МОДУЛЬ ВЗЯТ!', '#38bdf8');
+                } else {
+                    player.tapGoal = { type: 'CASE', targetX: caseX, targetY: 0 };
+                    addTapRipple(caseX, 20, '#10b981');
+                }
+                return;
+            }
+
+            if (player.carrying && !player.mounting) {
+                const nearSlot = findNearestInstallableSlot(player.x, player.y + 20);
+                if (nearSlot) {
+                    player.mounting = true;
+                    player.mountProgress = 0;
+                    player.targetSlot = nearSlot;
+                    player.tapGoal = null;
+                } else {
+                    const recSlot = getNextRecommendedSlot();
+                    if (recSlot) {
+                        const sx = getSlotWorldX(recSlot.col);
+                        const sy = Math.max(0, recSlot.row * cabSize);
+                        player.tapGoal = { type: 'SLOT', targetX: sx, targetY: sy, slot: recSlot };
+                        addTapRipple(sx, sy + cabSize / 2, '#fbbf24');
+                    } else {
+                        sayPlayer('Нарасти лестницу кнопкой «Лестница +2»!', 2.2);
+                    }
+                }
+            }
+        }
+
+        function findNearestInstallableSlot(px, py) {
+            ensureRowsExist(upgrades.ladderMaxRows + 2);
+            let best = null;
+            let bestDist = cabSize * 1.65;
+            for (let r = 0; r < upgrades.ladderMaxRows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (screenRows[r][c] !== null) continue;
+                    if (r > 0 && screenRows[r - 1][c] === null) continue;
+                    const sx = getSlotWorldX(c);
+                    const sy = getSlotWorldY(r);
+                    const d = Math.hypot(px - sx, py - sy);
+                    if (d < bestDist) {
+                        bestDist = d;
+                        best = { row: r, col: c };
+                    }
+                }
+            }
+            return best;
+        }
+
+        function findSlotForPartner(partner) {
+            ensureRowsExist(upgrades.ladderMaxRows + 2);
+            for (let r = 0; r < upgrades.ladderMaxRows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (screenRows[r][c] !== null) continue;
+                    if (r > 0 && screenRows[r - 1][c] === null) continue;
+                    const claimed = partners.some(other =>
+                        other.id !== partner.id &&
+                        (other.state === 'TO_COL' || other.state === 'CLIMB' || other.state === 'PLACE') &&
+                        other.targetRow === r &&
+                        other.targetCol === c
+                    );
+                    if (!claimed) {
+                        return { row: r, col: c };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function updatePartners(dt) {
+            const caseX = getCaseX();
+            partners.forEach(p => {
+                if (p.speechTimer > 0) p.speechTimer -= dt;
+                p.stuckTimer += dt;
+
+                if (p.stuckTimer > 12) {
+                    p.stuckTimer = 0;
+                    p.state = p.carrying ? 'TO_COL' : 'TO_CASE';
+                    if (p.y > 0 && !p.carrying) p.state = 'DESCEND';
+                }
+
+                if (p.state === 'TO_CASE') {
+                    p.y = Math.max(0, p.y - p.speed * dt);
+                    const dx = caseX - p.x;
+                    if (Math.abs(dx) > 6) {
+                        p.x += Math.sign(dx) * p.speed * dt;
+                        p.walkCycle += dt * 11;
+                    } else if (p.y <= 2) {
+                        p.y = 0;
+                        p.carrying = true;
+                        p.state = 'PICKUP';
+                        p.mountTimer = 0.25;
+                        p.stuckTimer = 0;
+                    }
+                } else if (p.state === 'PICKUP') {
+                    p.mountTimer -= dt;
+                    if (p.mountTimer <= 0) {
+                        const slot = findSlotForPartner(p);
+                        if (slot) {
+                            p.targetRow = slot.row;
+                            p.targetCol = slot.col;
+                            p.state = 'TO_COL';
+                            p.stuckTimer = 0;
+                            if (Math.random() < 0.35) {
+                                p.speechText = INTERN_BARKS[Math.floor(Math.random() * INTERN_BARKS.length)];
+                                p.speechTimer = 2.0;
+                            }
+                        } else {
+                            p.mountTimer = 0.8;
+                            p.stuckTimer = 0;
+                        }
+                    }
+                } else if (p.state === 'TO_COL') {
+                    if (screenRows[p.targetRow] && screenRows[p.targetRow][p.targetCol] !== null) {
+                        const nextSlot = findSlotForPartner(p);
+                        if (nextSlot) {
+                            p.targetRow = nextSlot.row;
+                            p.targetCol = nextSlot.col;
+                        } else {
+                            p.state = 'PICKUP';
+                            p.mountTimer = 0.6;
+                        }
+                        return;
+                    }
+                    const targetX = getSlotWorldX(p.targetCol);
+                    const dx = targetX - p.x;
+                    if (Math.abs(dx) > 5) {
+                        p.x += Math.sign(dx) * p.speed * dt;
+                        p.walkCycle += dt * 11;
+                    } else {
+                        p.x = targetX;
+                        p.state = 'CLIMB';
+                        p.stuckTimer = 0;
+                    }
+                } else if (p.state === 'CLIMB') {
+                    const targetY = Math.max(0, p.targetRow * cabSize);
+                    const dy = targetY - p.y;
+                    if (Math.abs(dy) > 4) {
+                        p.y += Math.sign(dy) * (p.speed * 0.92) * dt;
+                        p.walkCycle += dt * 13;
+                    } else {
+                        p.y = targetY;
+                        p.state = 'PLACE';
+                        p.mountTimer = Math.max(0.35, 0.85 - (upgrades.lockLevel - 1) * 0.1);
+                        p.stuckTimer = 0;
+                    }
+                } else if (p.state === 'PLACE') {
+                    p.mountTimer -= dt;
+                    if (p.mountTimer <= 0) {
+                        if (screenRows[p.targetRow] && screenRows[p.targetRow][p.targetCol] === null) {
+                            installCabinetAt(p.targetRow, p.targetCol);
+                        }
+                        p.carrying = false;
+                        p.state = 'DESCEND';
+                        p.stuckTimer = 0;
+                    }
+                } else if (p.state === 'DESCEND') {
+                    if (p.y > 3) {
+                        p.y -= (p.speed * 1.15) * dt;
+                        p.walkCycle += dt * 13;
+                    } else {
+                        p.y = 0;
+                        p.state = 'TO_CASE';
+                        p.stuckTimer = 0;
+                    }
+                }
+            });
+        }
+
+        function spawnFallingItem() {
+            const screenHalf = (cols * cabSize) / 2 + 12;
+            const x = (Math.random() - 0.5) * 2 * screenHalf;
+            const y = cameraY + height + 30;
+            const r = Math.random();
+            let type = 'wrench';
+            let emoji = '🔧';
+            if (r < 0.28) {
+                type = 'tape';
+                emoji = '🌀';
+            } else if (r < 0.52) {
+                type = 'energy';
+                emoji = '🥫';
+            } else if (r < 0.78) {
+                type = 'pigeon';
+                emoji = '🕊️';
+            } else if (currentLevelIdx >= 2) {
+                type = 'satellite';
+                emoji = '🛰️';
+            }
+
+            fallingItems.push({
+                x,
+                y,
+                vx: (Math.random() - 0.5) * 30,
+                vy: -(105 + Math.random() * 75),
+                rot: 0,
+                type,
+                emoji
+            });
+        }
+
+        function triggerLadderFall(reason) {
+            sound.playFall();
+            triggerHaptic(50);
+            player.y = 0;
+            player.carrying = false;
+            player.mounting = false;
+            player.mountProgress = 0;
+            player.tapGoal = null;
+            player.stunTimer = 1.0;
+            ladderSwayAngle = 0;
+            ladderSwayVel = 0;
+            const q = FALL_QUOTES[Math.floor(Math.random() * FALL_QUOTES.length)];
+            sayPlayer(q, 2.6);
+            addFloatingText(player.x, 40, reason, '#f472b6');
+        }
+
+        function update(dt) {
+            globalTime += dt;
+
+            cloudsAndStars.forEach(obj => {
+                obj.x += obj.speed * dt;
+                if (obj.x > 800) obj.x = -800;
+                if (obj.x < -800) obj.x = 800;
+            });
+
+            particles.forEach(p => {
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt * 1.8;
+            });
+            particles = particles.filter(p => p.life > 0);
+
+            floatingTexts.forEach(ft => {
+                ft.y += 36 * dt;
+                ft.life -= dt * 0.85;
+            });
+            floatingTexts = floatingTexts.filter(ft => ft.life > 0);
+
+            tapRipples.forEach(tr => {
+                tr.life -= dt * 2.2;
+            });
+            tapRipples = tapRipples.filter(tr => tr.life > 0);
+
+            if (gameState !== 'PLAYING') return;
+
+            const lvl = LEVELS[currentLevelIdx];
+
+            if (player.speechTimer > 0) player.speechTimer -= dt;
+            if (player.energyTimer > 0) {
+                player.energyTimer -= dt;
+                if (player.energyTimer <= 0) {
+                    player.energyTimer = 0;
+                    updateUI();
+                }
+            }
+            if (player.stunTimer > 0) player.stunTimer -= dt;
+
+            if (!stageNpc) {
+                npcSpawnTimer -= dt;
+                if (npcSpawnTimer <= 0) {
+                    spawnStageNpc();
+                }
+            } else {
+                stageNpc.walkCycle += dt * 9;
+                if (stageNpc.state === 'ENTERING') {
+                    const dx = stageNpc.targetX - stageNpc.x;
+                    if (Math.abs(dx) > 4) {
+                        stageNpc.x += Math.sign(dx) * 90 * dt;
+                    } else {
+                        stageNpc.x = stageNpc.targetX;
+                        stageNpc.state = 'WAITING';
+                    }
+                } else if (stageNpc.state === 'WAITING') {
+                    stageNpc.timer -= dt;
+                    if (stageNpc.timer <= 0) {
+                        stageNpc.state = 'LEAVING';
+                    }
+                } else if (stageNpc.state === 'LEAVING') {
+                    stageNpc.x += 110 * dt;
+                    if (stageNpc.x > width / 2 + 100) {
+                        stageNpc = null;
+                        npcSpawnTimer = 6.5;
+                    }
+                }
+            }
+
+            const stability = 1 + upgrades.ladderTier * 0.25;
+            if (player.y > 48 && upgrades.ladderTier >= 1) {
+                const heightFactor = Math.min(2.4, player.y / 160);
+                const windForce = Math.sin(globalTime * 1.9) * (0.14 * heightFactor * lvl.windFactor) / stability;
+                ladderSwayVel += (windForce - ladderSwayAngle * 2.8) * dt;
+                ladderSwayVel *= 0.94;
+                ladderSwayAngle += ladderSwayVel * dt;
+
+                if (Math.abs(ladderSwayAngle) > 0.34) {
+                    triggerLadderFall('Сдуло порывом ветра!');
+                }
+            } else {
+                ladderSwayAngle *= 0.85;
+                ladderSwayVel = 0;
+            }
+
+            itemSpawnTimer -= dt;
+            if (itemSpawnTimer <= 0) {
+                spawnFallingItem();
+                itemSpawnTimer = Math.max(2.2, 4.4 - completedRows * 0.08);
+            }
+
+            for (let i = fallingItems.length - 1; i >= 0; i--) {
+                const it = fallingItems[i];
+                it.y += it.vy * dt;
+                it.x += it.vx * dt;
+                it.rot += dt * 3;
+
+                if (Math.hypot(player.x - it.x, (player.y + 22) - it.y) < 28) {
+                    if (it.type === 'tape') {
+                        ladderSwayAngle *= 0.2;
+                        ladderSwayVel = 0;
+                        budget += 150;
+                        sound.playUpgrade();
+                        addFloatingText(it.x, it.y, 'ИЗОЛЕНТА! +150 ₽', '#38bdf8');
+                        updateUI();
+                    } else if (it.type === 'energy') {
+                        player.energyTimer = 7.0;
+                        sound.playEnergyDrink();
+                        addFloatingText(it.x, it.y, 'ТУРБО ЭНЕРГЕТИК!', '#fbbf24');
+                        updateUI();
+                    } else {
+                        if (player.y > 30) {
+                            triggerLadderFall(`Прилетело (${it.emoji})! В пупырку!`);
+                        } else {
+                            sound.playFall();
+                            addFloatingText(it.x, it.y, 'КАСКА СПАСЛА!', '#f87171');
+                        }
+                    }
+                    fallingItems.splice(i, 1);
+                    continue;
+                }
+
+                if (it.y < -20) fallingItems.splice(i, 1);
+            }
+
+            // Управление главным монтажником: прямое следование за пальцем + тап по объектам
+            const speedMult = (1 + (upgrades.lockLevel - 1) * 0.14) * (player.energyTimer > 0 ? 1.55 : 1);
+            const moveSpeed = 250 * speedMult;
+            const climbSpeed = 215 * speedMult;
+            const maxClimbY = upgrades.ladderMaxRows * cabSize - 16;
+
+            if (player.stunTimer <= 0) {
+                let vx = 0;
+                let vy = 0;
+
+                if (keys['ArrowLeft'] || keys['KeyA']) vx = -1;
+                if (keys['ArrowRight'] || keys['KeyD']) vx = 1;
+                if (keys['ArrowUp'] || keys['KeyW']) vy = 1;
+                if (keys['ArrowDown'] || keys['KeyS']) vy = -1;
+
+                // Если пользователь держит палец и ведёт им по экрану — персонаж идёт прямо к точке касания
+                if (fingerTracker.active) {
+                    player.tapGoal = null;
+                    player.mounting = false;
+
+                    const floorScreenY = height - getFloorOffset() + cameraY;
+                    const targetWorldX = fingerTracker.screenX - width / 2;
+                    const targetWorldY = Math.max(0, Math.min(maxClimbY, floorScreenY - fingerTracker.screenY - 15));
+
+                    const dx = targetWorldX - player.x;
+                    const dy = targetWorldY - player.y;
+
+                    if (Math.abs(dx) > 8) {
+                        vx = Math.max(-1, Math.min(1, dx / 28));
+                    }
+                    if (Math.abs(dy) > 8) {
+                        vy = Math.max(-1, Math.min(1, dy / 28));
+                    }
+                } else if (Math.abs(vx) > 0.1 || Math.abs(vy) > 0.1) {
+                    player.tapGoal = null;
+                    player.mounting = false;
+                }
+
+                // Авто-движение к цели, по которой тапнули (кейс, ячейка, NPC или точка на сцене)
+                if (player.tapGoal && Math.abs(vx) <= 0.1 && Math.abs(vy) <= 0.1) {
+                    const goal = player.tapGoal;
+                    const dx = goal.targetX - player.x;
+                    const dy = goal.targetY - player.y;
+
+                    if (goal.type === 'CASE' || goal.type === 'NPC') {
+                        if (player.y > 4) {
+                            vy = -1;
+                        } else if (Math.abs(dx) > 10) {
+                            vx = Math.sign(dx);
+                        } else {
+                            player.tapGoal = null;
+                            if (goal.type === 'CASE' && !player.carrying) {
+                                player.carrying = true;
+                                sound.playLockSnap();
+                                triggerHaptic(18);
+                                addFloatingText(player.x, player.y + 40, 'МОДУЛЬ ВЗЯТ!', '#38bdf8');
+                            } else if (goal.type === 'NPC') {
+                                resolveStageNpc();
+                            }
+                        }
+                    } else if (goal.type === 'SLOT') {
+                        if (screenRows[goal.slot.row] && screenRows[goal.slot.row][goal.slot.col] !== null) {
+                            player.tapGoal = null;
+                        } else if (Math.abs(dx) > 6) {
+                            vx = Math.sign(dx);
+                        } else if (Math.abs(dy) > 6) {
+                            player.x = goal.targetX;
+                            player.ladderX = goal.targetX;
+                            vy = Math.sign(dy);
+                        } else {
+                            player.x = goal.targetX;
+                            player.y = goal.targetY;
+                            player.tapGoal = null;
+                            if (player.carrying) {
+                                player.mounting = true;
+                                player.mountProgress = 0;
+                                player.targetSlot = goal.slot;
+                            }
+                        }
+                    } else if (goal.type === 'POINT') {
+                        if (Math.abs(dx) > 8) vx = Math.sign(dx);
+                        if (Math.abs(dy) > 8) vy = Math.sign(dy);
+                        if (Math.abs(dx) <= 8 && Math.abs(dy) <= 8) {
+                            player.tapGoal = null;
+                        }
+                    }
+                }
+
+                if (Math.abs(vx) > 0.12 || Math.abs(vy) > 0.12) {
+                    player.walkCycle += dt * 12;
+                }
+
+                if (Math.abs(vx) > 0.12) {
+                    player.facing = Math.sign(vx);
+                    if (player.y <= 6) {
+                        player.x += vx * moveSpeed * dt;
+                        const minX = getCaseX() - 8;
+                        const maxX = Math.min(width / 2 - 22, (cols * cabSize) / 2 + 95);
+                        player.x = Math.max(minX, Math.min(maxX, player.x));
+
+                        const screenHalf = (cols * cabSize) / 2 + 8;
+                        if (Math.abs(player.x) <= screenHalf) {
+                            player.ladderX = player.x;
+                        }
+                    } else {
+                        const screenHalf = (cols * cabSize) / 2 - 10;
+                        player.ladderX = Math.max(-screenHalf, Math.min(screenHalf, player.ladderX + vx * (moveSpeed * 0.68) * dt));
+                        player.x = player.ladderX;
+                        ladderSwayVel -= vx * 0.35 * dt;
+                    }
+                }
+
+                if (Math.abs(vy) > 0.14) {
+                    if (vy > 0) {
+                        if (Math.abs(player.x - player.ladderX) < 62) {
+                            player.x += (player.ladderX - player.x) * Math.min(1, dt * 16);
+                            player.y = Math.min(maxClimbY, player.y + vy * climbSpeed * dt);
+                        }
+                    } else if (vy < 0) {
+                        player.y = Math.max(0, player.y + vy * climbSpeed * 1.15 * dt);
+                    }
+                }
+
+                // Если отпустили палец рядом с ячейкой с модулем — автоматически начинаем затяжку замка!
+                if (!fingerTracker.active && !player.tapGoal && player.carrying && !player.mounting && Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1) {
+                    const nearSlot = findNearestInstallableSlot(player.x, player.y + 20);
+                    if (nearSlot) {
+                        player.mounting = true;
+                        player.mountProgress = 0;
+                        player.targetSlot = nearSlot;
+                    }
+                }
+
+                // Если подошли вплотную к кейсу без модуля — автоматически берём его!
+                if (!player.carrying && player.y < 14 && Math.abs(player.x - getCaseX()) < 44) {
+                    player.carrying = true;
+                    sound.playLockSnap();
+                    triggerHaptic(15);
+                    addFloatingText(player.x, player.y + 40, 'МОДУЛЬ ВЗЯТ!', '#38bdf8');
+                }
+
+                // Полный автопилот (если включена кнопка «Авто: ВКЛ»)
+                if (autoInstallMode && !fingerTracker.active && !player.tapGoal && Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1) {
+                    if (!player.carrying) {
+                        player.tapGoal = { type: 'CASE', targetX: getCaseX(), targetY: 0 };
+                    } else if (!player.mounting) {
+                        const recSlot = getNextRecommendedSlot();
+                        if (recSlot) {
+                            player.tapGoal = {
+                                type: 'SLOT',
+                                targetX: getSlotWorldX(recSlot.col),
+                                targetY: Math.max(0, recSlot.row * cabSize),
+                                slot: recSlot
+                            };
+                        }
+                    }
+                }
+            }
+
+            if (player.mounting && player.targetSlot) {
+                const { row, col } = player.targetSlot;
+                if (screenRows[row] && screenRows[row][col] !== null) {
+                    player.mounting = false;
+                } else {
+                    player.mountProgress += dt * (1.55 * speedMult);
+                    if (player.mountProgress >= 1) {
+                        installCabinetAt(row, col);
+                        player.carrying = false;
+                        player.mounting = false;
+                        player.mountProgress = 0;
+                    }
+                }
+            }
+
+            updatePartners(dt);
+            updateHiredRiggers(dt);
+            updateContextActionButton();
+
+            const desiredCam = Math.max(0, player.y - height * 0.30);
+            cameraY += (desiredCam - cameraY) * Math.min(1, dt * 6.5);
+        }
+
+        function drawVideoLandLogo(centerX, centerY, availW, availH, revealProgress = 1) {
+            if (revealProgress <= 0.02) return;
+
+            ctx.save();
+            const scale = (0.78 + 0.22 * revealProgress) * (1 + 0.03 * Math.sin(globalTime * 4));
+            ctx.translate(centerX, centerY);
+            ctx.scale(scale, scale);
+            ctx.globalAlpha = Math.min(1, revealProgress * 1.25);
+
+            const unit = Math.max(20, Math.min(availW * 0.34, availH * 0.44, 100));
+            const iconY = -unit * 0.28;
+            const half = unit * 0.5;
+            const r = unit * 0.11;
+            const strokeW = Math.max(2.0, unit * 0.055);
+
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = 'rgba(0, 136, 255, 0.45)';
+
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = strokeW;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            const gapStart = half * 0.25;
+            const gapEnd = half * 0.55;
+
+            ctx.beginPath();
+            ctx.moveTo(gapStart, half);
+            ctx.lineTo(-half + r, half);
+            ctx.quadraticCurveTo(-half, half, -half, half - r);
+            ctx.lineTo(-half, -half + r);
+            ctx.quadraticCurveTo(-half, -half, -half + r, -half);
+            ctx.lineTo(half - r, -half);
+            ctx.quadraticCurveTo(half, -half, half, -half + r);
+            ctx.lineTo(half, gapEnd);
+            ctx.stroke();
+
+            const barWidth = Math.max(2.4, unit * 0.068);
+            const bars = [
+                { color: '#FF1E42', offset: -unit * 0.14, len: unit * 0.56 },
+                { color: '#00E640', offset: 0, len: unit * 0.68 },
+                { color: '#0088FF', offset: unit * 0.14, len: unit * 0.78 }
+            ];
+
+            ctx.lineWidth = barWidth;
+            bars.forEach((b, idx) => {
+                const barGrow = Math.max(0, Math.min(1, (revealProgress - idx * 0.08) / 0.75));
+                const startX = -unit * 0.12 + b.offset * 0.65;
+                const startY = -unit * 0.12 - b.offset * 0.65;
+                const endX = startX + (b.len * 0.72) * barGrow;
+                const endY = startY + (b.len * 0.72) * barGrow;
+
+                ctx.strokeStyle = b.color;
+                ctx.shadowColor = b.color;
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+            });
+
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = 'rgba(255, 255, 255, 0.35)';
+            const textY = iconY + half + unit * 0.32;
+            const fontSize = Math.max(9, Math.min(availW * 0.095, unit * 0.27));
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = Math.max(1.3, fontSize * 0.11);
+
+            const letters = ['V', 'I', 'D', 'E', 'O', ' ', 'L', 'A', 'N', 'D'];
+            const charStep = fontSize * 0.76;
+            const totalTextW = (letters.length - 1) * charStep;
+            const lh = fontSize * 0.78;
+            const lw = fontSize * 0.54;
+
+            letters.forEach((ch, idx) => {
+                const lx = -totalTextW / 2 + idx * charStep;
+                const ly = textY;
+                if (ch === ' ') return;
+
+                ctx.beginPath();
+                if (ch === 'V') {
+                    ctx.moveTo(lx - lw / 2, ly - lh / 2);
+                    ctx.lineTo(lx, ly + lh / 2);
+                    ctx.lineTo(lx + lw / 2, ly - lh / 2);
+                } else if (ch === 'I') {
+                    ctx.moveTo(lx, ly - lh / 2);
+                    ctx.lineTo(lx, ly + lh / 2);
+                } else if (ch === 'D') {
+                    ctx.moveTo(lx - lw / 2, ly - lh / 2);
+                    ctx.lineTo(lx - lw / 2, ly + lh / 2);
+                    ctx.lineTo(lx + lw * 0.1, ly + lh / 2);
+                    ctx.arc(lx + lw * 0.1, ly, lh / 2, Math.PI / 2, -Math.PI / 2, true);
+                    ctx.closePath();
+                } else if (ch === 'E') {
+                    ctx.moveTo(lx - lw / 2, ly - lh / 2);
+                    ctx.lineTo(lx + lw / 2, ly - lh / 2);
+                    ctx.moveTo(lx - lw / 2, ly);
+                    ctx.lineTo(lx + lw / 2, ly);
+                    ctx.moveTo(lx - lw / 2, ly + lh / 2);
+                    ctx.lineTo(lx + lw / 2, ly + lh / 2);
+                } else if (ch === 'O') {
+                    ctx.arc(lx, ly, lh / 2, 0, Math.PI * 2);
+                } else if (ch === 'L') {
+                    ctx.moveTo(lx - lw / 2, ly - lh / 2);
+                    ctx.lineTo(lx - lw / 2, ly + lh / 2);
+                    ctx.lineTo(lx + lw / 2, ly + lh / 2);
+                } else if (ch === 'A') {
+                    ctx.moveTo(lx - lw / 2, ly + lh / 2);
+                    ctx.lineTo(lx, ly - lh / 2);
+                    ctx.lineTo(lx + lw / 2, ly + lh / 2);
+                } else if (ch === 'N') {
+                    ctx.moveTo(lx - lw / 2, ly + lh / 2);
+                    ctx.lineTo(lx - lw / 2, ly - lh / 2);
+                    ctx.lineTo(lx + lw / 2, ly + lh / 2);
+                    ctx.lineTo(lx + lw / 2, ly - lh / 2);
+                }
+                ctx.stroke();
+            });
+
+            const subSize = Math.max(6.5, fontSize * 0.44);
+            ctx.font = `500 ${subSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'rgba(248, 250, 252, 0.9)';
+            ctx.fillText('покажем миру вместе', 0, textY + lh * 0.5 + subSize * 1.45);
+
+            ctx.restore();
+        }
+
+        function drawUnifiedLedScreen(screenLeftX, floorScreenY) {
+            const installedList = [];
+            let maxInstalledRow = -1;
+            for (let r = 0; r < screenRows.length; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (screenRows[r][c] !== null) {
+                        installedList.push(screenRows[r][c]);
+                        if (r > maxInstalledRow) maxInstalledRow = r;
+                    }
+                }
+            }
+            if (installedList.length === 0) return;
+
+            const totalW = cols * cabSize;
+            const totalH = (maxInstalledRow + 1) * cabSize;
+            const screenTopY = floorScreenY - totalH;
+            const centerX = screenLeftX + totalW / 2;
+            const centerY = screenTopY + totalH / 2;
+
+            ctx.save();
+            ctx.beginPath();
+            installedList.forEach(cab => {
+                const cx = screenLeftX + cab.col * cabSize;
+                const cy = floorScreenY - (cab.row + 1) * cabSize;
+                ctx.rect(cx + 1, cy + 1, cabSize - 2, cabSize - 2);
+            });
+            ctx.clip();
+
+            ctx.fillStyle = '#030408';
+            ctx.fillRect(screenLeftX, screenTopY, totalW, totalH);
+
+            const mode = SCREEN_MODES[screenModeIndex].id;
+            const cyclePos = globalTime % 8.0;
+            let periodicLogoAlpha = 0;
+            if (cyclePos >= 3.2 && cyclePos <= 7.2) {
+                const t = cyclePos - 3.2;
+                if (t < 0.6) periodicLogoAlpha = t / 0.6;
+                else if (t > 3.4) periodicLogoAlpha = (4.0 - t) / 0.6;
+                else periodicLogoAlpha = 1;
+            }
+
+            if (mode === 'videoland') {
+                ctx.fillStyle = '#020204';
+                ctx.fillRect(screenLeftX, screenTopY, totalW, totalH);
+                const waveColors = ['rgba(255,30,66,0.16)', 'rgba(0,230,64,0.16)', 'rgba(0,136,255,0.18)'];
+                waveColors.forEach((wc, idx) => {
+                    ctx.strokeStyle = wc;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    const rad = (Math.min(totalW, totalH) * (0.28 + idx * 0.12)) + Math.sin(globalTime * 3 + idx) * 6;
+                    ctx.arc(centerX, centerY, Math.max(10, rad), 0, Math.PI * 2);
+                    ctx.stroke();
+                });
+                drawVideoLandLogo(centerX, centerY + totalH * 0.08, totalW, totalH, 1);
+
+            } else if (mode === 'novalct') {
+                const grad = ctx.createLinearGradient(screenLeftX, screenTopY, screenLeftX + totalW, floorScreenY);
+                grad.addColorStop(0, '#0f172a');
+                grad.addColorStop(0.5, '#1e1b4b');
+                grad.addColorStop(1, '#0f172a');
+                ctx.fillStyle = grad;
+                ctx.fillRect(screenLeftX, screenTopY, totalW, totalH);
+
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2.5;
+                ctx.strokeRect(screenLeftX + 2, screenTopY + 2, totalW - 4, totalH - 4);
+
+                ctx.strokeStyle = '#f43f5e';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(screenLeftX, screenTopY);
+                ctx.lineTo(screenLeftX + totalW, floorScreenY);
+                ctx.moveTo(screenLeftX + totalW, screenTopY);
+                ctx.lineTo(screenLeftX, floorScreenY);
+                ctx.stroke();
+
+                const circleR = Math.min(totalW, totalH) * 0.36;
+                ctx.strokeStyle = '#34d399';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, Math.max(14, circleR), 0, Math.PI * 2);
+                ctx.stroke();
+
+                const resW = cols * PX_PER_CAB;
+                const resH = (maxInstalledRow + 1) * PX_PER_CAB;
+                ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+                ctx.fillRect(centerX - 68, centerY - 18, 136, 36);
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(centerX - 68, centerY - 18, 136, 36);
+
+                ctx.fillStyle = '#fbbf24';
+                ctx.font = 'bold 9px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('NOVALCT TEST', centerX, centerY - 3);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(`${resW}×${resH} px`, centerX, centerY + 11);
+
+            } else if (mode === 'synthcat') {
+                const skyGrad = ctx.createLinearGradient(0, screenTopY, 0, floorScreenY);
+                skyGrad.addColorStop(0, '#1e1b4b');
+                skyGrad.addColorStop(0.55, '#831843');
+                skyGrad.addColorStop(1, '#ea580c');
+                ctx.fillStyle = skyGrad;
+                ctx.fillRect(screenLeftX, screenTopY, totalW, totalH);
+
+                const sunY = screenTopY + totalH * 0.52;
+                const sunR = Math.min(totalW * 0.32, totalH * 0.42);
+                const sunGrad = ctx.createLinearGradient(0, sunY - sunR, 0, sunY + sunR);
+                sunGrad.addColorStop(0, '#fde047');
+                sunGrad.addColorStop(1, '#f43f5e');
+                ctx.fillStyle = sunGrad;
+                ctx.beginPath();
+                ctx.arc(centerX, sunY, Math.max(15, sunR), 0, Math.PI * 2);
+                ctx.fill();
+
+                const catX = screenLeftX + ((globalTime * 105) % (totalW + 100)) - 50;
+                const catY = screenTopY + totalH * 0.72 + Math.sin(globalTime * 9) * 6;
+
+                const rainbow = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7'];
+                rainbow.forEach((col, idx) => {
+                    ctx.fillStyle = col;
+                    ctx.fillRect(screenLeftX, catY - 10 + idx * 3.5, Math.max(0, catX - screenLeftX), 3.5);
+                });
+
+                ctx.font = '24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('🐱', catX, catY + 7);
+
+                if (periodicLogoAlpha > 0) {
+                    ctx.fillStyle = `rgba(2, 4, 10, ${0.68 * periodicLogoAlpha})`;
+                    ctx.fillRect(screenLeftX, screenTopY, totalW, totalH);
+                    drawVideoLandLogo(centerX, centerY + totalH * 0.08, totalW * 0.88, totalH * 0.88, periodicLogoAlpha);
+                }
+
+            } else {
+                const hueBase = (globalTime * 32) % 360;
+                const bg = ctx.createLinearGradient(screenLeftX, screenTopY, screenLeftX + totalW, floorScreenY);
+                bg.addColorStop(0, `hsl(${hueBase}, 82%, 20%)`);
+                bg.addColorStop(0.5, `hsl(${(hueBase + 75) % 360}, 85%, 26%)`);
+                bg.addColorStop(1, `hsl(${(hueBase + 150) % 360}, 82%, 18%)`);
+                ctx.fillStyle = bg;
+                ctx.fillRect(screenLeftX, screenTopY, totalW, totalH);
+
+                const beamCy = screenTopY + totalH * 0.45;
+                for (let b = 0; b < 5; b++) {
+                    const ang = globalTime * 1.1 + (b * Math.PI) / 2.5;
+                    ctx.fillStyle = `hsla(${(hueBase + b * 65) % 360}, 95%, 65%, 0.24)`;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, beamCy);
+                    ctx.lineTo(centerX + Math.cos(ang - 0.14) * 700, beamCy + Math.sin(ang - 0.14) * 700);
+                    ctx.lineTo(centerX + Math.cos(ang + 0.14) * 700, beamCy + Math.sin(ang + 0.14) * 700);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                const bars = 16;
+                const barW = totalW / bars;
+                for (let i = 0; i < bars; i++) {
+                    const amp = 0.2 + 0.72 * Math.abs(Math.sin(globalTime * 5.2 + i * 0.48) * Math.cos(globalTime * 2.7 - i * 0.3));
+                    const bh = amp * totalH * 0.78;
+                    ctx.fillStyle = `hsla(${(hueBase + i * 18) % 360}, 95%, 62%, 0.65)`;
+                    ctx.fillRect(screenLeftX + i * barW + 1.5, floorScreenY - bh, barW - 3, bh);
+                }
+
+                if (periodicLogoAlpha > 0) {
+                    ctx.fillStyle = `rgba(2, 4, 10, ${0.72 * periodicLogoAlpha})`;
+                    ctx.fillRect(screenLeftX, screenTopY, totalW, totalH);
+                    drawVideoLandLogo(centerX, centerY + totalH * 0.08, totalW * 0.9, totalH * 0.9, periodicLogoAlpha);
+                }
+            }
+
+            ctx.strokeStyle = 'rgba(2, 6, 23, 0.32)';
+            ctx.lineWidth = 1;
+            installedList.forEach(cab => {
+                const cx = screenLeftX + cab.col * cabSize;
+                const cy = floorScreenY - (cab.row + 1) * cabSize;
+                ctx.strokeRect(cx, cy, cabSize, cabSize);
+            });
+
+            ctx.restore();
+        }
+
+        function drawAbsurdLadder(screenX, floorScreenY, ladderHeightPx) {
+            ctx.save();
+            ctx.translate(screenX, floorScreenY);
+            ctx.rotate(ladderSwayAngle);
+
+            let curY = 0;
+            if (upgrades.ladderTier >= 1) {
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#64748b';
+                ctx.lineWidth = 2;
+                ctx.fillRect(-20, -18, 40, 18);
+                ctx.strokeRect(-20, -18, 40, 18);
+                ctx.fillStyle = '#38bdf8';
+                ctx.font = 'bold 6.5px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('CASE', 0, -7);
+                curY -= 18;
+            }
+
+            if (upgrades.ladderTier >= 3) {
+                ctx.fillStyle = '#92400e';
+                ctx.fillRect(-14, curY - 15, 28, 15);
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(-9, curY - 23, 6, 8);
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(3, curY - 23, 6, 8);
+                curY -= 23;
+            }
+
+            const topY = -ladderHeightPx;
+            const railHalf = 11;
+            ctx.strokeStyle = upgrades.ladderTier >= 4 ? '#38bdf8' : '#e2e8f0';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-railHalf, curY);
+            ctx.lineTo(-railHalf + 2, topY);
+            ctx.moveTo(railHalf, curY);
+            ctx.lineTo(railHalf - 2, topY);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            for (let sy = curY - 14; sy > topY + 6; sy -= 18) {
+                ctx.beginPath();
+                ctx.moveTo(-railHalf + 1, sy);
+                ctx.lineTo(railHalf - 1, sy);
+                ctx.stroke();
+            }
+
+            if (upgrades.ladderTier >= 2) {
+                ctx.fillStyle = '#2563eb';
+                for (let ty = curY - 45; ty > topY + 18; ty -= 85) {
+                    ctx.fillRect(-railHalf - 3, ty - 4, (railHalf + 3) * 2, 8);
+                }
+            }
+
+            ctx.restore();
+        }
+
+        function drawWorker(worldX, floorScreenY, worldY, carrying, vestColor, pantsColor, facing, walkCycle, mounting, isIntern) {
+            const centerX = width / 2;
+            const sx = centerX + worldX;
+            const sy = floorScreenY - worldY;
+
+            ctx.save();
+            ctx.translate(sx, sy);
+
+            const legSwing = Math.sin(walkCycle) * 4.5;
+
+            ctx.strokeStyle = pantsColor;
+            ctx.lineWidth = 3.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-3.5, -13);
+            ctx.lineTo(-4.5 - legSwing, 0);
+            ctx.moveTo(3.5, -13);
+            ctx.lineTo(4.5 + legSwing, 0);
+            ctx.stroke();
+
+            ctx.fillStyle = vestColor;
+            ctx.fillRect(-7, -27, 14, 15);
+            ctx.fillStyle = '#fef08a';
+            ctx.fillRect(-7, -22, 14, 2.5);
+
+            ctx.fillStyle = '#fde68a';
+            ctx.beginPath();
+            ctx.arc(0, -33, 5.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = isIntern ? '#38bdf8' : '#fbbf24';
+            ctx.beginPath();
+            ctx.arc(0, -35, 6.5, Math.PI, 0);
+            ctx.fill();
+            ctx.fillRect(-7, -36, 14, 2);
+
+            if (carrying) {
+                ctx.fillStyle = '#0f172a';
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1.8;
+                ctx.fillRect(-13, -56, 26, 19);
+                ctx.strokeRect(-13, -56, 26, 19);
+                ctx.fillStyle = '#38bdf8';
+                ctx.font = 'bold 6.5px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('LED', 0, -44);
+            }
+
+            if (!isIntern && player.speechTimer > 0 && player.speechText) {
+                drawSpeechBubble(0, carrying ? -66 : -50, player.speechText, '#38bdf8');
+            }
+
+            ctx.restore();
+        }
+
+        function drawSpeechBubble(offsetX, offsetY, text, borderColor) {
+            ctx.save();
+            ctx.font = '700 10px -apple-system, BlinkMacSystemFont, sans-serif';
+            const cleanText = text.replace(/[«»]/g, '');
+            const maxLineW = Math.min(138, Math.max(95, width * 0.34));
+            const words = cleanText.split(' ');
+            const lines = [];
+            let curLine = '';
+
+            words.forEach(w => {
+                const test = curLine ? curLine + ' ' + w : w;
+                if (ctx.measureText(test).width > maxLineW && curLine) {
+                    lines.push(curLine);
+                    curLine = w;
+                } else {
+                    curLine = test;
+                }
+            });
+            if (curLine) lines.push(curLine);
+
+            let longest = 0;
+            lines.forEach(l => {
+                const lw = ctx.measureText(l).width;
+                if (lw > longest) longest = lw;
+            });
+
+            const padX = 9;
+            const padY = 6;
+            const lineH = 12;
+            const boxW = Math.max(64, longest + padX * 2);
+            const boxH = lines.length * lineH + padY * 2;
+            const tailH = 6;
+
+            // Удерживаем облачко в пределах видимого экрана по горизонтали
+            let bx = offsetX - boxW / 2;
+            try {
+                const m = ctx.getTransform();
+                const screenLeftEdge = bx + m.e;
+                const screenRightEdge = bx + boxW + m.e;
+                if (screenLeftEdge < 8) bx += (8 - screenLeftEdge);
+                if (screenRightEdge > width - 8) bx -= (screenRightEdge - (width - 8));
+            } catch (e) {}
+
+            const by = offsetY - boxH - tailH;
+            const tailTipX = Math.max(bx + 12, Math.min(bx + boxW - 12, offsetX));
+
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetY = 2;
+
+            // Единый контур комиксного белого облачка с хвостиком
+            const r = Math.min(10, boxW / 2, boxH / 2);
+            ctx.beginPath();
+            ctx.moveTo(bx + r, by);
+            ctx.lineTo(bx + boxW - r, by);
+            ctx.arcTo(bx + boxW, by, bx + boxW, by + r, r);
+            ctx.lineTo(bx + boxW, by + boxH - r);
+            ctx.arcTo(bx + boxW, by + boxH, bx + boxW - r, by + boxH, r);
+            ctx.lineTo(tailTipX + 5, by + boxH);
+            ctx.lineTo(tailTipX, by + boxH + tailH);
+            ctx.lineTo(tailTipX - 5, by + boxH);
+            ctx.lineTo(bx + r, by + boxH);
+            ctx.arcTo(bx, by + boxH, bx, by + boxH - r, r);
+            ctx.lineTo(bx, by + r);
+            ctx.arcTo(bx, by, bx + r, by, r);
+            ctx.closePath();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1.8;
+            ctx.stroke();
+
+            // Тёмный контрастный текст внутри белого облачка
+            ctx.fillStyle = '#0f172a';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            lines.forEach((line, idx) => {
+                const ly = by + padY + lineH * (idx + 0.5);
+                ctx.fillText(line, bx + boxW / 2, ly);
+            });
+
+            ctx.restore();
+        }
+
+        function drawHiredRigger(rig, centerX, floorScreenY, topTrussY) {
+            if (rig.state === 'IDLE') return;
+
+            const swingX = Math.sin(rig.swingPhase) * 6;
+            const sx = centerX + rig.x + swingX;
+            const sy = floorScreenY - rig.y;
+
+            ctx.save();
+
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 1.8;
+            ctx.setLineDash([5, 3]);
+            ctx.beginPath();
+            ctx.moveTo(centerX + rig.x, Math.min(topTrussY + 10, sy - 70));
+            ctx.lineTo(sx, sy - 20);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.translate(sx, sy);
+            ctx.rotate(Math.sin(rig.swingPhase) * 0.08);
+
+            ctx.fillStyle = rig.suitColor;
+            ctx.fillRect(-7, -14, 14, 16);
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = 1.8;
+            ctx.strokeRect(-7, -14, 14, 16);
+
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.moveTo(-3.5, 2);
+            ctx.lineTo(-4.5, 14);
+            ctx.moveTo(3.5, 2);
+            ctx.lineTo(4.5, 14);
+            ctx.stroke();
+
+            ctx.fillStyle = '#fde68a';
+            ctx.beginPath();
+            ctx.arc(0, -19, 5.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fbbf24';
+            ctx.beginPath();
+            ctx.arc(0, -21, 6.5, Math.PI, 0);
+            ctx.fill();
+
+            if (rig.state === 'DESCENDING' || rig.state === 'INSTALLING') {
+                ctx.fillStyle = '#0f172a';
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1.8;
+                ctx.fillRect(-13, 9, 26, 19);
+                ctx.strokeRect(-13, 9, 26, 19);
+                ctx.fillStyle = '#38bdf8';
+                ctx.font = 'bold 6.5px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('LED', 0, 21);
+            }
+
+            ctx.font = 'bold 9px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#34d399';
+            ctx.fillText(`🧗 РИГГЕР #${rig.id}`, 0, -30);
+
+            if (rig.speechTimer > 0 && rig.quote) {
+                drawSpeechBubble(0, -42, rig.quote, '#fbbf24');
+            }
+
+            ctx.restore();
+        }
+
+        function drawStageNpc(npc, centerX, floorScreenY) {
+            if (!npc) return;
+            const sx = centerX + npc.x;
+            const sy = floorScreenY;
+            const isClient = npc.type === 'client';
+
+            ctx.save();
+            ctx.translate(sx, sy);
+
+            const step = npc.state === 'WAITING' ? 0 : Math.sin(npc.walkCycle) * 3.5;
+
+            ctx.strokeStyle = isClient ? '#1e293b' : '#334155';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.moveTo(-3.5, -13);
+            ctx.lineTo(-3.5 - step, 0);
+            ctx.moveTo(3.5, -13);
+            ctx.lineTo(3.5 + step, 0);
+            ctx.stroke();
+
+            ctx.fillStyle = isClient ? '#0f172a' : '#4f46e5';
+            ctx.fillRect(-7, -28, 14, 16);
+
+            if (isClient) {
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(-1.5, -26, 3, 9);
+            } else {
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillRect(-13, -22, 10, 6);
+            }
+
+            ctx.fillStyle = '#fde68a';
+            ctx.beginPath();
+            ctx.arc(0, -33, 5.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (!isClient) {
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, -34, 6.8, Math.PI, 0);
+                ctx.stroke();
+            }
+
+            const title = isClient ? '🎩 ЗАКАЗЧИК' : '🎧 ПУЛЬТ';
+            const badgeColor = isClient ? '#f472b6' : '#38bdf8';
+
+            ctx.font = 'bold 9px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = badgeColor;
+            ctx.fillText(title, 0, -44);
+
+            if (npc.state !== 'LEAVING') {
+                drawSpeechBubble(-38, -56, npc.quote, badgeColor);
+                ctx.fillStyle = '#34d399';
+                ctx.font = 'bold 9px sans-serif';
+                ctx.fillText('[КОСНИСЬ]', 0, 12);
+            } else {
+                drawSpeechBubble(-38, -56, npc.quote, '#34d399');
+            }
+
+            ctx.restore();
+        }
+
+        function draw() {
+            const lvl = LEVELS[currentLevelIdx];
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, height);
+            skyGrad.addColorStop(0, lvl.skyTop);
+            skyGrad.addColorStop(1, lvl.skyBot);
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, width, height);
+
+            const centerX = width / 2;
+            const floorScreenY = height - getFloorOffset() + cameraY;
+
+            if (lvl.id === 1 && floorScreenY < height + 200) {
+                ctx.fillStyle = 'rgba(153, 27, 27, 0.35)';
+                ctx.fillRect(0, 0, 26, floorScreenY);
+                ctx.fillRect(width - 26, 0, 26, floorScreenY);
+            } else if (lvl.id === 4) {
+                cloudsAndStars.forEach(obj => {
+                    const sy = (obj.y % height);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                    ctx.beginPath();
+                    ctx.arc(centerX + obj.x, sy, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            } else {
+                cloudsAndStars.forEach(obj => {
+                    const sy = floorScreenY - obj.y;
+                    if (sy < -50 || sy > height + 50) return;
+                    if (obj.y > 220) {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+                        ctx.beginPath();
+                        ctx.arc(centerX + obj.x, sy, obj.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+            }
+
+            const screenWidth = cols * cabSize;
+            const screenLeftX = centerX - screenWidth / 2;
+
+            const topTrussY = floorScreenY - Math.max(upgrades.ladderMaxRows + 2, completedRows + 3) * cabSize - 28;
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(screenLeftX - 16, topTrussY, screenWidth + 32, 10);
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1.2;
+            for (let tx = screenLeftX - 14; tx < screenLeftX + screenWidth + 14; tx += 14) {
+                ctx.beginPath();
+                ctx.moveTo(tx, topTrussY);
+                ctx.lineTo(tx + 7, topTrussY + 10);
+                ctx.lineTo(tx + 14, topTrussY);
+                ctx.stroke();
+            }
+
+            const nextSlot = getNextRecommendedSlot();
+            for (let r = 0; r < screenRows.length; r++) {
+                const rowY = floorScreenY - (r + 1) * cabSize;
+                if (rowY > height + 60 || rowY + cabSize < -60) continue;
+
+                for (let c = 0; c < cols; c++) {
+                    if (!screenRows[r][c]) {
+                        const slotX = screenLeftX + c * cabSize;
+                        const withinLadder = r < upgrades.ladderMaxRows;
+                        const isNext = nextSlot && nextSlot.row === r && nextSlot.col === c;
+
+                        ctx.strokeStyle = isNext
+                            ? `rgba(251, 191, 36, ${0.65 + 0.3 * Math.sin(globalTime * 7)})`
+                            : (withinLadder ? 'rgba(148, 163, 184, 0.22)' : 'rgba(239, 68, 68, 0.16)');
+                        ctx.lineWidth = isNext ? 2.2 : 1;
+                        ctx.strokeRect(slotX + 1.5, rowY + 1.5, cabSize - 3, cabSize - 3);
+
+                        if (isNext) {
+                            ctx.fillStyle = 'rgba(251, 191, 36, 0.15)';
+                            ctx.fillRect(slotX + 1.5, rowY + 1.5, cabSize - 3, cabSize - 3);
+                        }
+                    }
+                }
+            }
+
+            drawUnifiedLedScreen(screenLeftX, floorScreenY);
+
+            if (floorScreenY < height + 220) {
+                ctx.fillStyle = lvl.floorColor;
+                ctx.fillRect(0, floorScreenY, width, 240);
+
+                ctx.fillStyle = lvl.accent;
+                ctx.fillRect(0, floorScreenY, width, 3);
+
+                ctx.fillStyle = 'rgba(244, 114, 182, 0.24)';
+                ctx.strokeStyle = '#f472b6';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.ellipse(centerX, floorScreenY, screenWidth * 0.46, 9, 0, Math.PI, 0);
+                ctx.fill();
+                ctx.stroke();
+
+                const caseScreenX = centerX + getCaseX();
+                ctx.fillStyle = '#0f172a';
+                ctx.strokeStyle = !player.carrying ? '#10b981' : '#38bdf8';
+                ctx.lineWidth = !player.carrying ? 2.5 : 1.8;
+                ctx.fillRect(caseScreenX - 22, floorScreenY - 40, 44, 40);
+                ctx.strokeRect(caseScreenX - 22, floorScreenY - 40, 44, 40);
+
+                ctx.fillStyle = '#38bdf8';
+                ctx.font = 'bold 8px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('КЕЙС', caseScreenX, floorScreenY - 22);
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText('LED', caseScreenX, floorScreenY - 10);
+
+                if (!player.carrying) {
+                    ctx.fillStyle = '#34d399';
+                    ctx.font = 'bold 9.5px sans-serif';
+                    ctx.fillText('▼ ТАП', caseScreenX, floorScreenY - 46);
+                }
+
+                drawStageNpc(stageNpc, centerX, floorScreenY);
+            }
+
+            drawAbsurdLadder(centerX + player.ladderX, floorScreenY, upgrades.ladderMaxRows * cabSize);
+
+            partners.forEach(p => {
+                if (p.y > 2) {
+                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+                    ctx.lineWidth = 1.8;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX + p.x - 7, floorScreenY);
+                    ctx.lineTo(centerX + p.x - 5, floorScreenY - p.y - 26);
+                    ctx.moveTo(centerX + p.x + 7, floorScreenY);
+                    ctx.lineTo(centerX + p.x + 5, floorScreenY - p.y - 26);
+                    ctx.stroke();
+                }
+                drawWorker(p.x, floorScreenY, p.y, p.carrying, p.color, '#1e293b', 1, p.walkCycle, p.state === 'PLACE', true);
+                if (p.speechTimer > 0 && p.speechText) {
+                    drawSpeechBubble(centerX + p.x, floorScreenY - p.y - 48, p.speechText, p.color);
+                }
+            });
+
+            hiredRiggers.forEach(rig => {
+                drawHiredRigger(rig, centerX, floorScreenY, topTrussY);
+            });
+
+            // Лёгкий луч-индикатор к пальцу, когда пользователь ведёт пальцем по экрану
+            if (fingerTracker.active) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(centerX + player.x, floorScreenY - player.y - 20);
+                ctx.lineTo(fingerTracker.screenX, fingerTracker.screenY);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            drawWorker(player.x, floorScreenY, player.y, player.carrying, '#f97316', '#1e3a8a', player.facing, player.walkCycle, player.mounting, false);
+
+            if (player.mounting && player.targetSlot) {
+                const barX = centerX + player.x - 20;
+                const barY = floorScreenY - player.y - 66;
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.fillRect(barX, barY, 40, 7);
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(barX + 1, barY + 1, 38 * player.mountProgress, 5);
+            }
+
+            tapRipples.forEach(tr => {
+                ctx.save();
+                ctx.strokeStyle = tr.color;
+                ctx.globalAlpha = Math.max(0, tr.life);
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(centerX + tr.x, floorScreenY - tr.y, (1 - tr.life) * 28 + 6, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            });
+
+            fallingItems.forEach(it => {
+                const sy = floorScreenY - it.y;
+                ctx.save();
+                ctx.translate(centerX + it.x, sy);
+                ctx.rotate(it.rot);
+                ctx.font = '20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(it.emoji, 0, 0);
+                ctx.restore();
+            });
+
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(centerX + p.x, floorScreenY - p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            floatingTexts.forEach(ft => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, ft.life);
+                ctx.font = '800 11px -apple-system, BlinkMacSystemFont, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = ft.color;
+                ctx.fillText(ft.text, centerX + ft.x, floorScreenY - ft.y);
+                ctx.restore();
+            });
+        }
+
+        function gameLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+            lastTime = timestamp;
+
+            update(dt);
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Клавиатура (на случай запуска на ПК)
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'Space' || e.code === 'KeyE') {
+                e.preventDefault();
+                triggerPlayerAction();
+            } else if (e.code === 'KeyT') {
+                toggleAutoInstallMode();
+            } else if (e.code === 'KeyM') {
+                toggleMusicUI();
+            } else if (e.code === 'Digit1') {
+                buyUpgrade('ladder');
+            } else if (e.code === 'Digit2') {
+                buyUpgrade('lock');
+            } else if (e.code === 'Digit3') {
+                buyUpgrade('partner');
+            } else if (e.code === 'Digit4') {
+                buyUpgrade('rigger');
+            }
+        });
+
+        window.addEventListener('keyup', e => {
+            keys[e.code] = false;
+        });
+
+        // Интеллектуальное прикосновение к экрану (тап по объекту или движение за пальцем)
+        function handleSceneTouchStart(clientX, clientY) {
+            if (gameState !== 'PLAYING') return;
+            sound.init();
+            const rect = canvas.getBoundingClientRect();
+            const sx = clientX - rect.left;
+            const sy = clientY - rect.top;
+            const tapWorldX = sx - width / 2;
+            const floorScreenY = height - getFloorOffset() + cameraY;
+            const tapWorldY = floorScreenY - sy;
+
+            // 1. Касание по Инженеру или Заказчику
+            if (stageNpc && stageNpc.state !== 'LEAVING') {
+                if (Math.abs(tapWorldX - stageNpc.x) < 58 && tapWorldY > -20 && tapWorldY < 95) {
+                    triggerHaptic(15);
+                    addTapRipple(stageNpc.x, 30, '#f472b6');
+                    if (player.y < 25 && Math.abs(player.x - stageNpc.x) < 75) {
+                        resolveStageNpc();
+                    } else {
+                        player.tapGoal = { type: 'NPC', targetX: stageNpc.x, targetY: 0 };
+                    }
+                    return true;
+                }
+            }
+
+            // 2. Касание по LED-кейсу слева
+            const caseX = getCaseX();
+            if (Math.abs(tapWorldX - caseX) < 52 && tapWorldY > -20 && tapWorldY < 80) {
+                triggerHaptic(15);
+                addTapRipple(caseX, 20, '#10b981');
+                if (!player.carrying) {
+                    if (player.y < 22 && Math.abs(player.x - caseX) < 72) {
+                        player.carrying = true;
+                        sound.playLockSnap();
+                        addFloatingText(player.x, player.y + 40, 'МОДУЛЬ ВЗЯТ!', '#38bdf8');
+                    } else {
+                        player.tapGoal = { type: 'CASE', targetX: caseX, targetY: 0 };
+                    }
+                }
+                return true;
+            }
+
+            // 3. Касание по ячейке LED-экрана
+            const screenHalf = (cols * cabSize) / 2;
+            if (Math.abs(tapWorldX) <= screenHalf + 18 && tapWorldY >= 0) {
+                const col = Math.max(0, Math.min(cols - 1, Math.floor((tapWorldX + screenHalf) / cabSize)));
+                const row = Math.floor(tapWorldY / cabSize);
+                if (row >= 0 && row < upgrades.ladderMaxRows) {
+                    ensureRowsExist(row + 2);
+                    let targetRow = row;
+                    while (targetRow > 0 && screenRows[targetRow - 1][col] === null) {
+                        targetRow--;
+                    }
+                    if (screenRows[targetRow][col] === null) {
+                        triggerHaptic(15);
+                        const slotX = getSlotWorldX(col);
+                        const slotY = Math.max(0, targetRow * cabSize);
+                        addTapRipple(slotX, slotY + cabSize / 2, '#fbbf24');
+                        if (!player.carrying) {
+                            sayPlayer('Сначала возьми LED-модуль в кейсе слева!', 2.0);
+                            player.tapGoal = { type: 'CASE', targetX: caseX, targetY: 0 };
+                        } else {
+                            player.tapGoal = { type: 'SLOT', targetX: slotX, targetY: slotY, slot: { row: targetRow, col } };
+                        }
+                        return true;
+                    }
+                } else if (row >= upgrades.ladderMaxRows) {
+                    sayPlayer('Высоко! Нажми «Лестница +2» внизу!', 2.0);
+                    return true;
+                }
+            }
+
+            // 4. Касание в любое другое место сцены -> идти к этой точке
+            const clampedX = Math.max(getCaseX() - 8, Math.min(Math.min(width / 2 - 22, (cols * cabSize) / 2 + 95), tapWorldX));
+            const clampedY = Math.max(0, Math.min(upgrades.ladderMaxRows * cabSize - 16, tapWorldY));
+            addTapRipple(clampedX, clampedY, '#38bdf8');
+            player.tapGoal = { type: 'POINT', targetX: clampedX, targetY: clampedY };
+            return false;
+        }
+
+        let lastTouchTime = 0;
+
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            lastTouchTime = Date.now();
+            if (e.changedTouches.length > 0) {
+                const t = e.changedTouches[0];
+                const handledAsObject = handleSceneTouchStart(t.clientX, t.clientY);
+                if (!handledAsObject) {
+                    fingerTracker.active = true;
+                    fingerTracker.touchId = t.identifier;
+                    fingerTracker.screenX = t.clientX;
+                    fingerTracker.screenY = t.clientY;
+                }
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (fingerTracker.active && t.identifier === fingerTracker.touchId) {
+                    fingerTracker.screenX = t.clientX;
+                    fingerTracker.screenY = t.clientY;
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', e => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (fingerTracker.active && t.identifier === fingerTracker.touchId) {
+                    fingerTracker.active = false;
+                    fingerTracker.touchId = null;
+                    break;
+                }
+            }
+        });
+
+        canvas.addEventListener('touchcancel', () => {
+            fingerTracker.active = false;
+            fingerTracker.touchId = null;
+        });
+
+        // Поддержка клика и перетаскивания мышью для проверки на компьютере
+        canvas.addEventListener('mousedown', e => {
+            if (Date.now() - lastTouchTime < 400) return;
+            const handledAsObject = handleSceneTouchStart(e.clientX, e.clientY);
+            if (!handledAsObject) {
+                fingerTracker.active = true;
+                fingerTracker.touchId = 'mouse';
+                fingerTracker.screenX = e.clientX;
+                fingerTracker.screenY = e.clientY;
+            }
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (fingerTracker.active && fingerTracker.touchId === 'mouse') {
+                fingerTracker.screenX = e.clientX;
+                fingerTracker.screenY = e.clientY;
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (fingerTracker.active && fingerTracker.touchId === 'mouse') {
+                fingerTracker.active = false;
+                fingerTracker.touchId = null;
+            }
+        });
+
+        btnAction.addEventListener('touchstart', e => {
+            e.preventDefault();
+            triggerPlayerAction();
+        }, { passive: false });
+        btnAction.addEventListener('click', e => {
+            if (e.detail === 0) return;
+            triggerPlayerAction();
+        });
+
+        btnAuto.addEventListener('click', toggleAutoInstallMode);
+        btnMusic.addEventListener('click', toggleMusicUI);
+
+        btnNextLevel.addEventListener('click', () => {
+            sound.init();
+            setupLevel((currentLevelIdx + 1) % LEVELS.length, true);
+        });
+
+        btnContinueLevel.addEventListener('click', () => {
+            sound.init();
+            setupLevel(currentLevelIdx + 1, true);
+        });
+
+        upgLadder.addEventListener('click', () => buyUpgrade('ladder'));
+        upgLock.addEventListener('click', () => buyUpgrade('lock'));
+        upgPartner.addEventListener('click', () => buyUpgrade('partner'));
+        upgRigger.addEventListener('click', () => buyUpgrade('rigger'));
+
+        btnTestMode.addEventListener('click', () => {
+            sound.init();
+            screenModeIndex = (screenModeIndex + 1) % SCREEN_MODES.length;
+            screenModeLabel.textContent = SCREEN_MODES[screenModeIndex].label;
+        });
+
+        btnSound.addEventListener('click', () => {
+            sound.init();
+            const muted = sound.toggleMute();
+            soundIcon.textContent = muted ? '🔇 Без звука' : '🔊 Звук';
+        });
+
+        btnStart.addEventListener('click', startGame);
+
+        function initApp() {
+            updateResponsiveMetrics();
+            syncAutoModeUI();
+            requestAnimationFrame(gameLoop);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+    </script>
+</body>
+</html>
