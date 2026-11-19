@@ -48,7 +48,7 @@
             height: 100%;
         }
 
-        /* Верхний HUD с учётом выреза экрана (notch / Dynamic Island) */
+        /* Верхний HUD с учётом выреза экрана */
         .hud {
             position: absolute;
             top: calc(6px + var(--safe-top));
@@ -119,7 +119,6 @@
             color: #fbbf24;
         }
 
-        /* Горизонтальная лента быстрых кнопок для телефона */
         .hud-actions-strip {
             display: flex;
             gap: 6px;
@@ -153,12 +152,6 @@
             background: rgba(30, 41, 59, 0.98);
         }
 
-        .icon-btn.active-mode {
-            border-color: #fbbf24;
-            color: #fbbf24;
-            box-shadow: 0 0 10px rgba(251, 191, 36, 0.35);
-        }
-
         .icon-btn.music-on {
             border-color: #ec4899;
             color: #f472b6;
@@ -187,10 +180,10 @@
             to { transform: scale(1.04); }
         }
 
-        /* Мобильная зона управления под большие пальцы */
+        /* Умная мобильная зона управления: полупрозрачный стик слева + контекстная кнопка справа */
         .mobile-controls {
             position: absolute;
-            bottom: calc(96px + var(--safe-bottom));
+            bottom: calc(92px + var(--safe-bottom));
             left: calc(10px + var(--safe-left));
             right: calc(10px + var(--safe-right));
             display: flex;
@@ -200,21 +193,25 @@
             z-index: 16;
         }
 
-        /* Виртуальный аналоговый стик слева */
         .joystick-zone {
-            width: 118px;
-            height: 118px;
+            width: 112px;
+            height: 112px;
             border-radius: 50%;
-            background: rgba(15, 23, 42, 0.62);
-            border: 2px solid rgba(56, 189, 248, 0.38);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
+            background: rgba(15, 23, 42, 0.42);
+            border: 2px solid rgba(56, 189, 248, 0.35);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             position: relative;
             pointer-events: auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+            transition: opacity 0.2s ease, background 0.2s ease;
+        }
+
+        .joystick-zone.active {
+            background: rgba(15, 23, 42, 0.75);
+            border-color: #38bdf8;
         }
 
         .joystick-arrows {
@@ -222,7 +219,7 @@
             inset: 6px;
             pointer-events: none;
             color: rgba(148, 163, 184, 0.55);
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 800;
         }
 
@@ -235,18 +232,16 @@
         .joystick-arrows .a-right { right: 4px; top: 50%; transform: translateY(-50%); }
 
         .joystick-knob {
-            width: 48px;
-            height: 48px;
+            width: 46px;
+            height: 46px;
             border-radius: 50%;
-            background: radial-gradient(circle at 35% 35%, #38bdf8, #0284c7);
+            background: radial-gradient(circle at 35% 35%, rgba(56, 189, 248, 0.92), rgba(2, 132, 199, 0.92));
             border: 2px solid #bae6fd;
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.65);
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.55);
             transform: translate(0px, 0px);
-            transition: transform 0.05s linear;
             pointer-events: none;
         }
 
-        /* Правый блок крупных кнопок действия */
         .action-stack {
             display: flex;
             flex-direction: column;
@@ -261,24 +256,46 @@
             border-radius: 18px;
             color: #fff;
             font-weight: 900;
-            font-size: 0.88rem;
-            padding: 15px 18px;
-            min-width: 146px;
+            font-size: 0.85rem;
+            padding: 15px 16px;
+            min-width: 154px;
             text-align: center;
             cursor: pointer;
-            box-shadow: 0 6px 20px rgba(2, 132, 199, 0.55);
+            box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
+            transition: transform 0.1s ease, background 0.2s ease, border-color 0.2s ease;
         }
 
         .act-btn:active {
-            transform: scale(0.94);
+            transform: scale(0.93);
+        }
+
+        /* Подсветка умной контекстной кнопки в зависимости от действия */
+        .act-btn.ready-take {
+            background: linear-gradient(135deg, #059669, #10b981);
+            border-color: #a7f3d0;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.65);
+        }
+
+        .act-btn.ready-mount {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+            border-color: #fef08a;
+            color: #020617;
+            box-shadow: 0 0 22px rgba(245, 158, 11, 0.75);
+        }
+
+        .act-btn.ready-npc {
+            background: linear-gradient(135deg, #db2777, #9333ea);
+            border-color: #f5d0fe;
+            box-shadow: 0 0 20px rgba(219, 39, 119, 0.65);
         }
 
         .act-btn.auto {
-            background: rgba(15, 23, 42, 0.9);
+            background: rgba(15, 23, 42, 0.88);
             border: 1.5px solid rgba(251, 191, 36, 0.55);
             color: #fbbf24;
-            padding: 9px 14px;
-            font-size: 0.76rem;
+            padding: 8px 13px;
+            min-width: 132px;
+            font-size: 0.75rem;
             border-radius: 13px;
             box-shadow: none;
         }
@@ -290,7 +307,7 @@
             box-shadow: 0 0 15px rgba(234, 88, 12, 0.65);
         }
 
-        /* Компактная нижняя панель апгрейдов для экрана смартфона */
+        /* Нижняя панель апгрейдов */
         .bottom-dock {
             position: absolute;
             bottom: calc(8px + var(--safe-bottom));
@@ -315,7 +332,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            min-height: 76px;
+            min-height: 74px;
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
         }
@@ -461,7 +478,6 @@
             transform: scale(0.97);
         }
 
-        /* Адаптация под горизонтальную ориентацию телефона (Landscape) */
         @media (max-height: 500px) and (orientation: landscape) {
             .hud {
                 flex-direction: row;
@@ -473,18 +489,18 @@
                 max-width: 54%;
             }
             .mobile-controls {
-                bottom: calc(68px + var(--safe-bottom));
+                bottom: calc(66px + var(--safe-bottom));
             }
             .joystick-zone {
-                width: 96px;
-                height: 96px;
+                width: 92px;
+                height: 92px;
             }
             .joystick-knob {
-                width: 40px;
-                height: 40px;
+                width: 38px;
+                height: 38px;
             }
             .upg-btn {
-                min-height: 54px;
+                min-height: 52px;
                 padding: 4px;
             }
             .upg-icon {
@@ -535,7 +551,7 @@
             <div class="energy-badge" id="energyBadge">⚡ ЭНЕРГЕТИК: ТУРБО!</div>
         </div>
 
-        <!-- Сенсорное управление: Виртуальный джойстик + Кнопки действия -->
+        <!-- Сенсорное управление -->
         <div class="mobile-controls">
             <div class="joystick-zone" id="joystickZone">
                 <div class="joystick-arrows">
@@ -549,7 +565,7 @@
 
             <div class="action-stack">
                 <button class="act-btn auto" id="btnAuto">🖐️ Авто-монтаж: ВЫКЛ</button>
-                <button class="act-btn" id="btnAction">🔧 Взять / Ставить</button>
+                <button class="act-btn" id="btnAction">📦 К кейсу за LED</button>
             </div>
         </div>
 
@@ -589,20 +605,20 @@
             <div class="modal">
                 <div class="brand-tag">VIDEO LAND • покажем миру вместе</div>
                 <h1>ЛЕСТНИЦА В БЕСКОНЕЧНОСТЬ</h1>
-                <p>Мобильная версия! Пройди 4 площадки от сельского ДК до космоса, собирая LED-экран на самой абсурдной лестнице!</p>
+                <p>Мобильная версия с умным управлением! Собери LED-экран на 4 площадках от ДК до космоса!</p>
 
                 <div class="guide-box">
                     <div class="guide-row">
+                        <span class="key-pill">ТАП ПО СЦЕНЕ</span>
+                        <span>Нажми на <b>кейс</b>, <b>ячейку экрана</b> или <b>NPC</b> — монтажник сам побежит и сделает!</span>
+                    </div>
+                    <div class="guide-row">
                         <span class="key-pill">СТИК СЛЕВА</span>
-                        <span>Веди пальцем для бега, подъёма по лестнице и <b>баланса</b></span>
+                        <span>Ручное управление: бег, авто-подъём по лестнице и баланс на ветру</span>
                     </div>
                     <div class="guide-row">
                         <span class="key-pill">КНОПКА СПРАВА</span>
-                        <span>Взять модуль из кейса, закрепить на стене или ответить NPC</span>
-                    </div>
-                    <div class="guide-row">
-                        <span class="key-pill">ТАП ПО ПЕРСОНАЖУ</span>
-                        <span>Нажимай прямо на <b>Пультовика</b> или <b>Заказчика</b>, чтобы получить премию</span>
+                        <span>Сама подсказывает действие: <b>Взять модуль</b>, <b>Закрутить</b> или <b>Ответить</b></span>
                     </div>
                     <div class="guide-row">
                         <span class="key-pill">РИГГЕРЫ 🧗</span>
@@ -639,6 +655,12 @@
             ctx.lineTo(x, y + radius);
             ctx.arcTo(x, y, x + radius, y, radius);
             ctx.closePath();
+        }
+
+        function triggerHaptic(ms = 18) {
+            try {
+                if (navigator.vibrate) navigator.vibrate(ms);
+            } catch (e) {}
         }
 
         class ChiptuneSoundEngine {
@@ -962,7 +984,7 @@
                 skyBot: '#31102f',
                 floorColor: '#451a03',
                 accent: '#f59e0b',
-                intro: 'Уютный ДК: собери 4 ряда под логотип VIDEO LAND!'
+                intro: 'Тапни на кейс слева или веди стиком!'
             },
             {
                 id: 2,
@@ -975,7 +997,7 @@
                 skyBot: '#1e293b',
                 floorColor: '#0f172a',
                 accent: '#38bdf8',
-                intro: 'Ледовый дворец: найми риггеров, чтобы собрать 7 рядов!'
+                intro: 'Ледовый дворец: найми риггеров для 7 рядов!'
             },
             {
                 id: 3,
@@ -1006,7 +1028,7 @@
         ];
 
         let cols = 5;
-        let cabSize = 44; // Адаптивный размер кабинета под ширину экрана телефона
+        let cabSize = 44;
         const PX_PER_CAB = 192;
 
         const LADDER_TIERS = [
@@ -1124,7 +1146,8 @@
             energyTimer: 0,
             stunTimer: 0,
             speechText: '',
-            speechTimer: 0
+            speechTimer: 0,
+            tapGoal: null // { type: 'CASE' | 'SLOT' | 'NPC', targetX, targetY, slot }
         };
 
         let ladderSwayAngle = 0;
@@ -1140,11 +1163,11 @@
         let itemSpawnTimer = 3.0;
         let particles = [];
         let floatingTexts = [];
+        let tapRipples = [];
         let cloudsAndStars = [];
 
         const keys = {};
 
-        // Состояние виртуального аналогового джойстика
         const joystick = {
             active: false,
             touchId: null,
@@ -1160,8 +1183,7 @@
             canvas.height = height * dpr;
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-            // Подгоняем размер кабинета под ширину мобильного экрана, чтобы помещались кейс + экран + NPC
-            const availForScreen = Math.max(170, width - 155);
+            const availForScreen = Math.max(170, width - 150);
             cabSize = Math.max(28, Math.min(50, Math.floor(availForScreen / cols)));
         }
 
@@ -1195,6 +1217,10 @@
 
         function addFloatingText(worldX, worldY, text, color = '#fbbf24') {
             floatingTexts.push({ x: worldX, y: worldY, text, color, life: 1.0 });
+        }
+
+        function addTapRipple(worldX, worldY, color = '#38bdf8') {
+            tapRipples.push({ x: worldX, y: worldY, color, life: 1.0 });
         }
 
         function createSparks(worldX, worldY, color, count = 12) {
@@ -1256,13 +1282,42 @@
             btnAuto.classList.toggle('on', autoInstallMode);
         }
 
+        // Обновление умной контекстной кнопки справа в зависимости от ситуации на сцене
+        function updateContextActionButton() {
+            btnAction.classList.remove('ready-take', 'ready-mount', 'ready-npc');
+
+            if (stageNpc && stageNpc.state !== 'LEAVING' && player.y < 25 && Math.abs(player.x - stageNpc.x) < 75) {
+                btnAction.textContent = stageNpc.type === 'client' ? '🎩 Ответить заказчику!' : '🎧 Ответить пультовику!';
+                btnAction.classList.add('ready-npc');
+                return;
+            }
+
+            if (!player.carrying) {
+                if (player.y < 25 && Math.abs(player.x - getCaseX()) < 72) {
+                    btnAction.textContent = '📦 Взять LED-модуль!';
+                    btnAction.classList.add('ready-take');
+                } else {
+                    btnAction.textContent = '🏃 Бежать к кейсу';
+                }
+            } else {
+                const nearSlot = findNearestInstallableSlot(player.x, player.y + 20);
+                if (nearSlot) {
+                    btnAction.textContent = '🔧 Закрутить замок!';
+                    btnAction.classList.add('ready-mount');
+                } else {
+                    btnAction.textContent = '🪜 К ближайшей ячейке';
+                }
+            }
+        }
+
         function toggleAutoInstallMode() {
             autoInstallMode = !autoInstallMode;
+            triggerHaptic(15);
             syncAutoModeUI();
             sayPlayer(
                 autoInstallMode
-                    ? 'Авто-монтаж ВКЛ: сам хватаю и ставлю!'
-                    : 'Авто-монтаж ВЫКЛ: жми кнопку справа!',
+                    ? 'Авто-монтаж ВКЛ: сам бегу и ставлю!'
+                    : 'Авто-монтаж ВЫКЛ: тапай по экрану или жми кнопку!',
                 2.2
             );
         }
@@ -1376,12 +1431,14 @@
             player.mountProgress = 0;
             player.energyTimer = 0;
             player.stunTimer = 0;
+            player.tapGoal = null;
 
             stageNpc = null;
             npcSpawnTimer = 3.5;
             fallingItems = [];
             particles = [];
             floatingTexts = [];
+            tapRipples = [];
             cameraY = 0;
             ladderSwayAngle = 0;
             ladderSwayVel = 0;
@@ -1394,6 +1451,7 @@
 
         function startGame() {
             sound.init();
+            triggerHaptic(20);
             startOverlay.classList.add('hidden');
             setupLevel(0, false);
         }
@@ -1507,7 +1565,7 @@
                 targetX,
                 state: 'ENTERING',
                 quote,
-                timer: 14.0,
+                timer: 15.0,
                 walkCycle: 0
             };
             sound.playNpcBlip(type === 'client');
@@ -1524,6 +1582,7 @@
             const reply = replies[Math.floor(Math.random() * replies.length)];
 
             sound.playCashDing();
+            triggerHaptic(30);
             sayPlayer(reply, 2.8);
             addFloatingText(
                 stageNpc.x,
@@ -1546,6 +1605,7 @@
         function buyUpgrade(type) {
             if (gameState !== 'PLAYING') return;
             sound.init();
+            triggerHaptic(22);
 
             if (type === 'ladder' && budget >= upgrades.ladderCost) {
                 budget -= upgrades.ladderCost;
@@ -1614,6 +1674,7 @@
             const reward = 180 + row * 40 + currentLevelIdx * 35;
             budget += reward;
             sound.playLockSnap();
+            triggerHaptic(18);
             createSparks(getSlotWorldX(col), getSlotWorldY(row), '#38bdf8', 12);
             addFloatingText(getSlotWorldX(col), getSlotWorldY(row) + 10, `+${reward} ₽`, '#34d399');
 
@@ -1622,6 +1683,7 @@
                 const rowBonus = 300 + row * 80;
                 budget += rowBonus;
                 sound.playRowComplete();
+                triggerHaptic(40);
                 addFloatingText(0, getSlotWorldY(row) + 24, `РЯД #${row + 1}! +${rowBonus} ₽`, '#fbbf24');
 
                 const lvl = LEVELS[currentLevelIdx];
@@ -1635,40 +1697,60 @@
             updateUI();
         }
 
+        // Умная кнопка действия: если игрок далеко, задаёт авто-маршрут к цели!
         function triggerPlayerAction() {
             if (gameState !== 'PLAYING' || player.stunTimer > 0) return;
             sound.init();
+            triggerHaptic(15);
 
-            if (stageNpc && stageNpc.state !== 'LEAVING' && player.y < 20 && Math.abs(player.x - stageNpc.x) < 68) {
+            // 1. Если рядом NPC — отвечаем
+            if (stageNpc && stageNpc.state !== 'LEAVING' && player.y < 25 && Math.abs(player.x - stageNpc.x) < 75) {
                 resolveStageNpc();
                 return;
             }
 
-            if (!player.carrying && player.y < 18 && Math.abs(player.x - getCaseX()) < 68) {
-                player.carrying = true;
-                sound.playLockSnap();
-                addFloatingText(player.x, player.y + 40, 'МОДУЛЬ ВЗЯТ!', '#38bdf8');
+            // 2. Если без модуля — берём у кейса или отправляемся к кейсу
+            if (!player.carrying) {
+                const caseX = getCaseX();
+                if (player.y < 22 && Math.abs(player.x - caseX) < 72) {
+                    player.carrying = true;
+                    player.tapGoal = null;
+                    sound.playLockSnap();
+                    addFloatingText(player.x, player.y + 40, 'МОДУЛЬ ВЗЯТ!', '#38bdf8');
+                } else {
+                    player.tapGoal = { type: 'CASE', targetX: caseX, targetY: 0 };
+                    addTapRipple(caseX, 20, '#10b981');
+                }
                 return;
             }
 
+            // 3. Если несём модуль — ставим в ближайшую ячейку или бежим к рекомендованной
             if (player.carrying && !player.mounting) {
-                const slot = findNearestInstallableSlot(player.x, player.y + 20);
-                if (slot) {
+                const nearSlot = findNearestInstallableSlot(player.x, player.y + 20);
+                if (nearSlot) {
                     player.mounting = true;
                     player.mountProgress = 0;
-                    player.targetSlot = slot;
+                    player.targetSlot = nearSlot;
+                    player.tapGoal = null;
                 } else {
-                    sayPlayer('Подлезь по лестнице к жёлтой ячейке!', 1.8);
+                    const recSlot = getNextRecommendedSlot();
+                    if (recSlot) {
+                        const sx = getSlotWorldX(recSlot.col);
+                        const sy = Math.max(0, recSlot.row * cabSize);
+                        player.tapGoal = { type: 'SLOT', targetX: sx, targetY: sy, slot: recSlot };
+                        addTapRipple(sx, sy + cabSize / 2, '#fbbf24');
+                    } else {
+                        sayPlayer('Нарасти лестницу кнопкой «Лестница +2»!', 2.2);
+                    }
                 }
-            } else if (!player.carrying && player.y < 18) {
-                sayPlayer('Подойди к LED-кейсу слева и нажми кнопку!', 1.8);
             }
         }
 
         function findNearestInstallableSlot(px, py) {
             ensureRowsExist(upgrades.ladderMaxRows + 2);
             let best = null;
-            let bestDist = cabSize * 1.25;
+            // Увеличенный радиус захвата для удобной игры на смартфоне
+            let bestDist = cabSize * 1.65;
             for (let r = 0; r < upgrades.ladderMaxRows; r++) {
                 for (let c = 0; c < cols; c++) {
                     if (screenRows[r][c] !== null) continue;
@@ -1839,10 +1921,12 @@
 
         function triggerLadderFall(reason) {
             sound.playFall();
+            triggerHaptic(50);
             player.y = 0;
             player.carrying = false;
             player.mounting = false;
             player.mountProgress = 0;
+            player.tapGoal = null;
             player.stunTimer = 1.0;
             ladderSwayAngle = 0;
             ladderSwayVel = 0;
@@ -1872,6 +1956,11 @@
                 ft.life -= dt * 0.85;
             });
             floatingTexts = floatingTexts.filter(ft => ft.life > 0);
+
+            tapRipples.forEach(tr => {
+                tr.life -= dt * 2.2;
+            });
+            tapRipples = tapRipples.filter(tr => tr.life > 0);
 
             if (gameState !== 'PLAYING') return;
 
@@ -1972,22 +2061,73 @@
                 if (it.y < -20) fallingItems.splice(i, 1);
             }
 
+            // Управление главным монтажником (ручной стик + тап-навигация)
             const speedMult = (1 + (upgrades.lockLevel - 1) * 0.14) * (player.energyTimer > 0 ? 1.55 : 1);
-            const moveSpeed = 225 * speedMult;
-            const climbSpeed = 190 * speedMult;
+            const moveSpeed = 240 * speedMult;
+            const climbSpeed = 205 * speedMult;
             const maxClimbY = upgrades.ladderMaxRows * cabSize - 16;
 
             if (player.stunTimer <= 0) {
                 let vx = joystick.dx;
-                let vy = -joystick.dy; // На экране вверх = отрицательный Y касания, в мире = положительный
+                let vy = -joystick.dy;
 
                 if (keys['ArrowLeft'] || keys['KeyA']) vx = -1;
                 if (keys['ArrowRight'] || keys['KeyD']) vx = 1;
                 if (keys['ArrowUp'] || keys['KeyW']) vy = 1;
                 if (keys['ArrowDown'] || keys['KeyS']) vy = -1;
 
+                // Если пользователь двинул стик вручную — отменяем тап-маршрут
                 if (Math.abs(vx) > 0.15 || Math.abs(vy) > 0.15) {
+                    player.tapGoal = null;
                     player.mounting = false;
+                }
+
+                // Авто-движение к цели, по которой тапнули на экране (Tap-to-Act)
+                if (player.tapGoal && Math.abs(vx) <= 0.15 && Math.abs(vy) <= 0.15) {
+                    const goal = player.tapGoal;
+                    const dx = goal.targetX - player.x;
+                    const dy = goal.targetY - player.y;
+
+                    if (goal.type === 'CASE' || goal.type === 'NPC') {
+                        if (player.y > 4) {
+                            vy = -1;
+                        } else if (Math.abs(dx) > 10) {
+                            vx = Math.sign(dx);
+                        } else {
+                            player.tapGoal = null;
+                            if (goal.type === 'CASE' && !player.carrying) {
+                                player.carrying = true;
+                                sound.playLockSnap();
+                                triggerHaptic(18);
+                                addFloatingText(player.x, player.y + 40, 'МОДУЛЬ ВЗЯТ!', '#38bdf8');
+                            } else if (goal.type === 'NPC') {
+                                resolveStageNpc();
+                            }
+                        }
+                    } else if (goal.type === 'SLOT') {
+                        // Проверяем, не занял ли ячейку стажёр или риггер
+                        if (screenRows[goal.slot.row] && screenRows[goal.slot.row][goal.slot.col] !== null) {
+                            player.tapGoal = null;
+                        } else if (Math.abs(dx) > 6) {
+                            vx = Math.sign(dx);
+                        } else if (Math.abs(dy) > 6) {
+                            player.x = goal.targetX;
+                            player.ladderX = goal.targetX;
+                            vy = Math.sign(dy);
+                        } else {
+                            player.x = goal.targetX;
+                            player.y = goal.targetY;
+                            player.tapGoal = null;
+                            if (player.carrying) {
+                                player.mounting = true;
+                                player.mountProgress = 0;
+                                player.targetSlot = goal.slot;
+                            }
+                        }
+                    }
+                }
+
+                if (Math.abs(vx) > 0.15 || Math.abs(vy) > 0.15) {
                     player.walkCycle += dt * 12;
                 }
 
@@ -2005,34 +2145,37 @@
                         }
                     } else {
                         const screenHalf = (cols * cabSize) / 2 - 10;
-                        player.ladderX = Math.max(-screenHalf, Math.min(screenHalf, player.ladderX + vx * (moveSpeed * 0.55) * dt));
+                        player.ladderX = Math.max(-screenHalf, Math.min(screenHalf, player.ladderX + vx * (moveSpeed * 0.65) * dt));
                         player.x = player.ladderX;
                         ladderSwayVel -= vx * 0.35 * dt;
                     }
                 }
 
-                if (Math.abs(vy) > 0.2) {
-                    if (vy > 0 && Math.abs(player.x - player.ladderX) < 36) {
-                        player.x = player.ladderX;
-                        player.y = Math.min(maxClimbY, player.y + vy * climbSpeed * dt);
+                if (Math.abs(vy) > 0.18) {
+                    if (vy > 0) {
+                        // Магнит к лестнице: если монтажник рядом с лестницей — автоматически подтягивается и лезет вверх!
+                        if (Math.abs(player.x - player.ladderX) < 55) {
+                            player.x += (player.ladderX - player.x) * Math.min(1, dt * 15);
+                            player.y = Math.min(maxClimbY, player.y + vy * climbSpeed * dt);
+                        }
                     } else if (vy < 0) {
                         player.y = Math.max(0, player.y + vy * climbSpeed * 1.15 * dt);
                     }
                 }
 
-                if (autoInstallMode) {
-                    if (!player.carrying && player.y < 14 && Math.abs(player.x - getCaseX()) < 48) {
-                        player.carrying = true;
-                        sound.playLockSnap();
-                        addFloatingText(player.x, player.y + 40, 'МОДУЛЬ ВЗЯТ!', '#38bdf8');
-                    }
-
-                    if (player.carrying && !player.mounting && Math.abs(vx) < 0.15 && Math.abs(vy) < 0.15) {
-                        const slot = findNearestInstallableSlot(player.x, player.y + 20);
-                        if (slot) {
-                            player.mounting = true;
-                            player.mountProgress = 0;
-                            player.targetSlot = slot;
+                // Режим полного автопилота (если пользователь включил кнопку «Авто: ВКЛ»)
+                if (autoInstallMode && !player.tapGoal && Math.abs(vx) < 0.15 && Math.abs(vy) < 0.15) {
+                    if (!player.carrying) {
+                        player.tapGoal = { type: 'CASE', targetX: getCaseX(), targetY: 0 };
+                    } else if (!player.mounting) {
+                        const recSlot = getNextRecommendedSlot();
+                        if (recSlot) {
+                            player.tapGoal = {
+                                type: 'SLOT',
+                                targetX: getSlotWorldX(recSlot.col),
+                                targetY: Math.max(0, recSlot.row * cabSize),
+                                slot: recSlot
+                            };
                         }
                     }
                 }
@@ -2043,7 +2186,7 @@
                 if (screenRows[row] && screenRows[row][col] !== null) {
                     player.mounting = false;
                 } else {
-                    player.mountProgress += dt * (1.45 * speedMult);
+                    player.mountProgress += dt * (1.55 * speedMult);
                     if (player.mountProgress >= 1) {
                         installCabinetAt(row, col);
                         player.carrying = false;
@@ -2055,6 +2198,7 @@
 
             updatePartners(dt);
             updateHiredRiggers(dt);
+            updateContextActionButton();
 
             const desiredCam = Math.max(0, player.y - height * 0.30);
             cameraY += (desiredCam - cameraY) * Math.min(1, dt * 6.5);
@@ -2735,8 +2879,8 @@
 
                 const caseScreenX = centerX + getCaseX();
                 ctx.fillStyle = '#0f172a';
-                ctx.strokeStyle = '#38bdf8';
-                ctx.lineWidth = 1.8;
+                ctx.strokeStyle = !player.carrying ? '#10b981' : '#38bdf8';
+                ctx.lineWidth = !player.carrying ? 2.5 : 1.8;
                 ctx.fillRect(caseScreenX - 22, floorScreenY - 40, 44, 40);
                 ctx.strokeRect(caseScreenX - 22, floorScreenY - 40, 44, 40);
 
@@ -2747,10 +2891,10 @@
                 ctx.fillStyle = '#fbbf24';
                 ctx.fillText('LED', caseScreenX, floorScreenY - 10);
 
-                if (!autoInstallMode && !player.carrying && player.y < 18 && Math.abs(player.x - getCaseX()) < 68) {
-                    ctx.fillStyle = '#38bdf8';
-                    ctx.font = 'bold 10px sans-serif';
-                    ctx.fillText('Взять!', caseScreenX, floorScreenY - 46);
+                if (!player.carrying) {
+                    ctx.fillStyle = '#34d399';
+                    ctx.font = 'bold 9.5px sans-serif';
+                    ctx.fillText('▼ ТАП', caseScreenX, floorScreenY - 46);
                 }
 
                 drawStageNpc(stageNpc, centerX, floorScreenY);
@@ -2781,20 +2925,6 @@
 
             drawWorker(player.x, floorScreenY, player.y, player.carrying, '#f97316', '#1e3a8a', player.facing, player.walkCycle, player.mounting, false);
 
-            if (!autoInstallMode && player.carrying && !player.mounting) {
-                const nearSlot = findNearestInstallableSlot(player.x, player.y + 20);
-                if (nearSlot) {
-                    const sx = centerX + getSlotWorldX(nearSlot.col);
-                    const sy = floorScreenY - getSlotWorldY(nearSlot.row) - 24;
-                    ctx.save();
-                    ctx.fillStyle = '#fbbf24';
-                    ctx.font = 'bold 10px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Ставь!', sx, sy);
-                    ctx.restore();
-                }
-            }
-
             if (player.mounting && player.targetSlot) {
                 const barX = centerX + player.x - 20;
                 const barY = floorScreenY - player.y - 66;
@@ -2803,6 +2933,18 @@
                 ctx.fillStyle = '#38bdf8';
                 ctx.fillRect(barX + 1, barY + 1, 38 * player.mountProgress, 5);
             }
+
+            // Визуальные кольца при тапе на объект
+            tapRipples.forEach(tr => {
+                ctx.save();
+                ctx.strokeStyle = tr.color;
+                ctx.globalAlpha = Math.max(0, tr.life);
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(centerX + tr.x, floorScreenY - tr.y, (1 - tr.life) * 28 + 6, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            });
 
             fallingItems.forEach(it => {
                 const sy = floorScreenY - it.y;
@@ -2847,7 +2989,7 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Логика виртуального аналогового стика для телефона
+        // Виртуальный аналоговый стик
         const joystickZone = document.getElementById('joystickZone');
         const joystickKnob = document.getElementById('joystickKnob');
 
@@ -2876,6 +3018,7 @@
             joystick.touchId = null;
             joystick.dx = 0;
             joystick.dy = 0;
+            joystickZone.classList.remove('active');
             joystickKnob.style.transform = 'translate(0px, 0px)';
         }
 
@@ -2886,6 +3029,7 @@
                 const t = e.changedTouches[0];
                 joystick.active = true;
                 joystick.touchId = t.identifier;
+                joystickZone.classList.add('active');
                 updateJoystickFromTouch(t.clientX, t.clientY);
             }
         }, { passive: false });
@@ -2913,10 +3057,10 @@
 
         joystickZone.addEventListener('touchcancel', resetJoystick);
 
-        // Поддержка мыши для тестирования стика на ПК
         joystickZone.addEventListener('mousedown', e => {
             sound.init();
             joystick.active = true;
+            joystickZone.classList.add('active');
             updateJoystickFromTouch(e.clientX, e.clientY);
         });
         window.addEventListener('mousemove', e => {
@@ -2930,7 +3074,7 @@
             }
         });
 
-        // Клавиатура (если откроют на ПК или с Bluetooth-клавиатурой)
+        // Клавиатура
         window.addEventListener('keydown', e => {
             keys[e.code] = true;
             if (e.code === 'Space' || e.code === 'KeyE') {
@@ -2955,7 +3099,7 @@
             keys[e.code] = false;
         });
 
-        // Тап по экрану (взаимодействие с Пультовиком/Заказчиком или кейсом)
+        // Интеллектуальный тап по игровой сцене (Tap-to-Move / Tap-to-Act)
         function handleCanvasTap(clientX, clientY) {
             if (gameState !== 'PLAYING') return;
             sound.init();
@@ -2964,27 +3108,90 @@
             const floorScreenY = height - getFloorOffset() + cameraY;
             const tapWorldY = floorScreenY - (clientY - rect.top);
 
+            // 1. Тап по Инженеру или Заказчику -> подбежать и ответить
             if (stageNpc && stageNpc.state !== 'LEAVING') {
-                if (Math.abs(tapWorldX - stageNpc.x) < 55 && tapWorldY > -20 && tapWorldY < 90) {
-                    resolveStageNpc();
+                if (Math.abs(tapWorldX - stageNpc.x) < 58 && tapWorldY > -20 && tapWorldY < 95) {
+                    triggerHaptic(15);
+                    addTapRipple(stageNpc.x, 30, '#f472b6');
+                    if (player.y < 25 && Math.abs(player.x - stageNpc.x) < 75) {
+                        resolveStageNpc();
+                    } else {
+                        player.tapGoal = { type: 'NPC', targetX: stageNpc.x, targetY: 0 };
+                    }
                     return;
+                }
+            }
+
+            // 2. Тап по LED-кейсу слева -> подбежать и взять модуль
+            const caseX = getCaseX();
+            if (Math.abs(tapWorldX - caseX) < 48 && tapWorldY > -20 && tapWorldY < 75) {
+                triggerHaptic(15);
+                addTapRipple(caseX, 20, '#10b981');
+                if (!player.carrying) {
+                    if (player.y < 22 && Math.abs(player.x - caseX) < 72) {
+                        player.carrying = true;
+                        sound.playLockSnap();
+                        addFloatingText(player.x, player.y + 40, 'МОДУЛЬ ВЗЯТ!', '#38bdf8');
+                    } else {
+                        player.tapGoal = { type: 'CASE', targetX: caseX, targetY: 0 };
+                    }
+                }
+                return;
+            }
+
+            // 3. Тап по пустой ячейке LED-экрана -> полезть и смонтировать модуль
+            const screenHalf = (cols * cabSize) / 2;
+            if (Math.abs(tapWorldX) <= screenHalf + 15 && tapWorldY >= 0) {
+                const col = Math.max(0, Math.min(cols - 1, Math.floor((tapWorldX + screenHalf) / cabSize)));
+                const row = Math.floor(tapWorldY / cabSize);
+                if (row >= 0 && row < upgrades.ladderMaxRows) {
+                    ensureRowsExist(row + 2);
+                    // Находим нижнюю доступную ячейку в этом столбце
+                    let targetRow = row;
+                    while (targetRow > 0 && screenRows[targetRow - 1][col] === null) {
+                        targetRow--;
+                    }
+                    if (screenRows[targetRow][col] === null) {
+                        triggerHaptic(15);
+                        const sx = getSlotWorldX(col);
+                        const sy = Math.max(0, targetRow * cabSize);
+                        addTapRipple(sx, sy + cabSize / 2, '#fbbf24');
+                        if (!player.carrying) {
+                            sayPlayer('Сначала возьми LED-модуль в кейсе слева!', 2.0);
+                            player.tapGoal = { type: 'CASE', targetX: caseX, targetY: 0 };
+                        } else {
+                            player.tapGoal = { type: 'SLOT', targetX: sx, targetY: sy, slot: { row: targetRow, col } };
+                        }
+                        return;
+                    }
+                } else if (row >= upgrades.ladderMaxRows) {
+                    sayPlayer('Высоко! Нажми «Лестница +2» внизу!', 2.0);
                 }
             }
         }
 
-        canvas.addEventListener('click', e => handleCanvasTap(e.clientX, e.clientY));
+        let lastTapTime = 0;
         canvas.addEventListener('touchstart', e => {
             if (e.changedTouches.length > 0) {
+                lastTapTime = Date.now();
                 const t = e.changedTouches[0];
                 handleCanvasTap(t.clientX, t.clientY);
             }
         }, { passive: true });
 
+        canvas.addEventListener('click', e => {
+            if (Date.now() - lastTapTime < 350) return;
+            handleCanvasTap(e.clientX, e.clientY);
+        });
+
         btnAction.addEventListener('touchstart', e => {
             e.preventDefault();
             triggerPlayerAction();
         }, { passive: false });
-        btnAction.addEventListener('click', triggerPlayerAction);
+        btnAction.addEventListener('click', e => {
+            if (e.detail === 0) return;
+            triggerPlayerAction();
+        });
 
         btnAuto.addEventListener('click', toggleAutoInstallMode);
         btnMusic.addEventListener('click', toggleMusicUI);
