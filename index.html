@@ -153,7 +153,7 @@
         .hp-fill {
             height: 100%;
             width: 100%;
-            background: linear-gradient(90deg, #10b981, #34d399);
+            background: linear-gradient(90deg, #dc2626, #ef4444);
             border-radius: 999px;
             transition: width 0.22s ease, background 0.22s ease;
         }
@@ -1613,13 +1613,7 @@
             const hpPct = Math.max(0, Math.round((player.hp / player.maxHp) * 100));
             hudHpText.textContent = `❤️ Жизнь: ${hpPct}%`;
             hudHpFill.style.width = `${hpPct}%`;
-            if (hpPct > 60) {
-                hudHpFill.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
-            } else if (hpPct > 20) {
-                hudHpFill.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
-            } else {
-                hudHpFill.style.background = 'linear-gradient(90deg, #dc2626, #f43f5e)';
-            }
+            hudHpFill.style.background = 'linear-gradient(90deg, #dc2626, #ef4444)';
 
             energyBadge.classList.toggle('active', player.energyTimer > 0);
 
